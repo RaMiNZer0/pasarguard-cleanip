@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PasarGuard Clean IP UI Test Harness</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #09090b;
+      color: #f4f4f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+    }
+    aside {
+      width: 240px;
+      background: #18181b;
+      border-left: 1px solid #27272a;
+      padding: 20px 10px;
+    }
+    main {
+      flex: 1;
+      padding: 30px;
+      background: #09090b;
+    }
+  </style>
+</head>
+<body>
+  <aside>
+    <div style="font-weight: bold; margin-bottom: 20px; padding: 0 10px;">🛡️ PasarGuard Test</div>
+    <ul data-sidebar="menu" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;">
+      <li style="padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.05);">داشبورد</li>
+      <li style="padding: 8px 12px; border-radius: 8px;">کاربران</li>
+      <li style="padding: 8px 12px; border-radius: 8px;">هاست‌ها</li>
+    </ul>
+  </aside>
+  <main>
+    <h1>داشبورد تست پاسارگارد</h1>
+    <p style="color: #71717a;">شبیه‌ساز محیط واقعی پنل پاسارگارد جهت تست UI مودال Clean IP</p>
+  </main>
+
+  <script>
+    // 1. Mock Fetch API
+    const mockHosts = [];
+    for (let i = 1; i <= 25; i++) {
+      if (i % 3 === 0) {
+        mockHosts.push({
+          id: i,
+          remark: `#${i}[TG] ویژه CDN پرسرعت`,
+          inbound_tag: 'cloud8443',
+          port: null,
+          address: ['104.16.24.11']
+        });
+      } else if (i % 3 === 1) {
+        mockHosts.push({
+          id: i,
+          remark: `#${i}[TG] سرور اختصاصی XHTTP`,
+          inbound_tag: 'XHTTP-2087',
+          port: null,
+          address: ['104.18.32.10']
+        });
+      } else {
+        mockHosts.push({
+          id: i,
+          remark: `VIP+${i} Turkey Direct Reality`,
+          inbound_tag: 'VLESS TCP 35741',
+          port: 35741,
+          address: ['65.109.217.93']
+        });
+      }
+    }
+
+    const originalFetch = window.fetch;
+    window.fetch = async function(url, options = {}) {
+      if (typeof url === 'string') {
+        if (url.includes('/api/cleanip/status')) {
+          return new Response(JSON.stringify({
+            success: true,
+            settings: {
+              target_host_ids: [1, 3, 4],
+              enabled_isps: ['mci', 'mtn'],
+              limit_per_isp: 2,
+              auto_interval_hours: 3,
+              auto_pilot: true
+            },
+            latest_update: {
+              timestamp: new Date().toISOString(),
+              applied_ips: ['104.16.132.5', '104.17.200.12', '162.159.136.2']
+            }
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (url.includes('/api/cleanip/hosts')) {
+          return new Response(JSON.stringify(mockHosts), {
+            status: 200, headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        if (url.includes('/api/cleanip/check-update')) {
+          return new Response(JSON.stringify({
+            has_update: false,
+            latest_version: '1.4.0',
+            changelog: 'آپدیت رابط کاربری'
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (url.includes('/api/cleanip/settings') || url.includes('/api/cleanip/scan-and-apply')) {
+          return new Response(JSON.stringify({
+            success: true,
+            message: 'تست با موفقیت انجام شد',
+            applied_ips: ['104.16.1.1', '104.16.2.2'],
+            updated_hosts: ['Host #1', 'Host #3']
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+      }
+      return originalFetch(url, options);
+    };
+  </script>
+
+  <!-- Load cleanip-panel.js script -->
+  <script src="../plugin/cleanip-panel.js"></script>
+
+  <script>
+    // Auto-open modal after load
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        const pill = document.getElementById('pg-cleanip-floating-pill');
+        if (pill) pill.click();
+      }, 500);
+    });
+  </script>
+</body>
+</html>

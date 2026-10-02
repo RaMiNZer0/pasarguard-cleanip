@@ -348,8 +348,8 @@
         
         <!-- Header (Fixed Top) -->
         <div class="pg-cleanip-header">
-          <button id="cleanip-close-x" style="background:none; border:none; color:#a1a1aa; font-size:18px; font-weight:bold; cursor:pointer; padding:4px 8px; border-radius:6px;">✕</button>
           <div style="display:flex; align-items:center; gap:10px;">
+            <div style="width:34px; height:34px; border-radius:10px; background:rgba(16,185,129,0.15); display:flex; align-items:center; justify-content:center; font-size:16px;">🛡️</div>
             <div>
               <div style="display:flex; align-items:center; gap:6px;">
                 <span style="font-weight:700; font-size:14px;">مدیریت Clean IP</span>
@@ -358,8 +358,8 @@
               </div>
               <p style="font-size:11px; color:#71717a; margin-top:2px;">نوسازی خودکار آی‌پی‌های تمیز کلودفلر</p>
             </div>
-            <div style="width:34px; height:34px; border-radius:10px; background:rgba(16,185,129,0.15); display:flex; align-items:center; justify-content:center; font-size:16px;">🛡️</div>
           </div>
+          <button id="cleanip-close-x" style="background:none; border:none; color:#a1a1aa; font-size:18px; font-weight:bold; cursor:pointer; padding:4px 8px; border-radius:6px;">✕</button>
         </div>
 
         <!-- In-Panel Auto-Update Banner (if available) -->
