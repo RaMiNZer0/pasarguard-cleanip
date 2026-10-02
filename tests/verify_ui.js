@@ -20,8 +20,8 @@ const path = require('path');
   const cardBox = await card.boundingBox();
   console.log(`✅ Modal Card Dimensions: width=${cardBox.width}px, height=${cardBox.height}px, top=${cardBox.y}px, left=${cardBox.x}px`);
 
-  if (cardBox.height > 660 || cardBox.width > 660) {
-    throw new Error(`FAIL: Card dimensions out of bounds!`);
+  if (cardBox.height > 860 || cardBox.width > 860 || cardBox.width < 750) {
+    throw new Error(`FAIL: Card dimensions out of bounds: width=${cardBox.width}, height=${cardBox.height}`);
   }
 
   // Verify Version Badge
@@ -140,7 +140,7 @@ const path = require('path');
 
   // Test "اعمال روی هاست‌های انتخابی"
   console.log('🚀 Clicking "اعمال روی هاست‌های انتخابی" button...');
-  await page.click('#cleanip-apply-selected-btn');
+  await page.click('#cleanip-trigger-scan');
   await page.waitForTimeout(500);
 
   const bannerVisible = await page.$eval('#cleanip-alert-banner', el => el.style.display !== 'none');

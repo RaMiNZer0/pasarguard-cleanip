@@ -117,9 +117,9 @@
         }
         if (url.includes('/api/cleanip/check-update')) {
           return new Response(JSON.stringify({
-            has_update: false,
-            latest_version: '1.7.0',
-            changelog: 'پنل تعاملی تست زنده پینگ، جدول کاندیداها و انتخاب دستی آی‌پی‌ها'
+            has_update: true,
+            latest_version: '1.8.0',
+            changelog: 'ایزولاسیون کامل تم‌ها، نوار ابزار چسبان، دکمه پاکسازی، و محافظت از دامنه و SNI هاست‌ها'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         if (url.includes('/api/cleanip/diagnose')) {

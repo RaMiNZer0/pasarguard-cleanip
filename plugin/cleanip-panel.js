@@ -45,9 +45,9 @@
       }
       .pg-cleanip-card {
         width: 95% !important;
-        max-width: 610px !important;
-        height: 610px !important;
-        max-height: 88vh !important;
+        max-width: 820px !important;
+        height: 740px !important;
+        max-height: 90vh !important;
         background: #18181b !important;
         color: #f4f4f5 !important;
         border: 1px solid #27272a !important;
@@ -198,13 +198,13 @@
         top: -14px !important;
         z-index: 20 !important;
         background: #18181b !important;
-        padding: 12px 14px !important;
+        padding: 9px 12px !important;
         border-radius: 10px !important;
         border: 1px solid #27272a !important;
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45) !important;
         display: flex !important;
         flex-direction: column !important;
-        gap: 10px !important;
+        gap: 7px !important;
         margin-bottom: 8px !important;
       }
       html:not(.dark) .pg-cleanip-tab2-sticky-toolbar {
@@ -448,15 +448,13 @@
 
         <!-- In-Panel Auto-Update Banner (if available) -->
         ${hasUpdate ? `
-          <div id="cleanip-update-banner" style="margin:8px 16px 0; padding:10px 14px; border-radius:10px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.35); display:flex; align-items:center; justify-content:space-between; font-size:12px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-size:16px;">🚀</span>
-              <div>
-                <span style="font-weight:700; color:#f59e0b;">نسخه جدید (${updateData.latest_version}) آماده نصب است!</span>
-                <p style="font-size:11px; color:#a1a1aa; margin-top:2px;">${updateData.changelog || 'بهینه‌سازی کارایی و حل باگ‌ها'}</p>
-              </div>
+          <div id="cleanip-update-banner" style="flex-shrink:0; margin:6px 16px 0; padding:6px 12px; border-radius:8px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.35); display:flex; align-items:center; justify-content:space-between; font-size:12px;">
+            <div style="display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden;">
+              <span style="font-size:14px; flex-shrink:0;">🚀</span>
+              <span style="font-weight:700; color:#f59e0b; white-space:nowrap; flex-shrink:0;">نسخه جدید (${updateData.latest_version}):</span>
+              <span style="font-size:11px; color:#a1a1aa; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${updateData.changelog || 'بهینه‌سازی کارایی و حل باگ‌ها'}</span>
             </div>
-            <button id="cleanip-oneclick-update-btn" style="padding:6px 12px; border-radius:8px; background:#f59e0b; color:#000; font-weight:700; font-size:11px; border:none; cursor:pointer;">
+            <button id="cleanip-oneclick-update-btn" style="padding:4px 12px; border-radius:6px; background:#f59e0b; color:#000; font-weight:700; font-size:11px; border:none; cursor:pointer; flex-shrink:0; margin-right:8px;">
               آپدیت فوری ⚡
             </button>
           </div>
@@ -561,56 +559,52 @@
           </div>
 
           <!-- TAB 2: PING TEST & MANUAL IP SELECTION -->
-          <div id="cleanip-pane-ping" style="display:none; flex-direction:column; gap:10px; font-size:12px;">
-            <!-- Control Header Card (Sticky Toolbar) -->
+          <div id="cleanip-pane-ping" style="display:none; flex-direction:column; gap:8px; font-size:12px;">
+            <!-- Control Header Card (Compact Sticky Toolbar) -->
             <div class="pg-cleanip-tab2-sticky-toolbar">
-              <!-- Header Title -->
-              <div>
-                <span style="font-weight:700; font-size:13px; display:block; color:#10b981;">⚡ تست زنده پینگ و گزینش آی‌پی‌های تمیز</span>
-                <p style="font-size:11px; color:#71717a; margin-top:2px;">پینگ آی‌پی‌ها را بسنجید، هر کدام که پینگ سبز و عالی داشت تیک بزنید و اعمال کنید.</p>
-              </div>
-
-              <!-- Action Bar (Row 1: Primary Ping & Mode) -->
-              <div style="display:flex; align-items:center; gap:8px;">
-                <button id="cleanip-ping-all-btn" type="button" style="flex:1; padding:7px 14px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:5px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
-                  ⚡ تست پینگ همه آی‌پی‌ها
-                </button>
-                <select id="cleanip-ping-mode-select" style="min-width:145px; padding:7px 10px; border-radius:8px; font-size:11px; outline:none; cursor:pointer;">
-                  <option value="server">🌐 تست از سرور (سریع)</option>
-                  <option value="browser">💻 تست از مرورگر شما</option>
-                </select>
-              </div>
-
-              <!-- Action Bar (Row 2: Sources & Utility Actions) -->
-              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                <button id="cleanip-toggle-manual-btn" type="button" style="flex:1; padding:6px 10px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid #3f3f46; color:#e4e4e7; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
-                  ➕ افزودن دستی
-                </button>
-                <button id="cleanip-discover-cf-btn" type="button" style="flex:1.2; padding:6px 10px; border-radius:8px; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
-                  🎲 اسکن رنج‌های کلودفلر
-                </button>
-                <button id="cleanip-clean-dead-btn" type="button" title="حذف تمام آی‌پی‌هایی که در تست پینگ ناموفق یا قطعی بودند" style="padding:6px 10px; border-radius:8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#ef4444; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
-                  🗑️ پاکسازی فیلترشده‌ها
-                </button>
+              <!-- Row 1: Title + Action Buttons -->
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-weight:700; font-size:13px; color:#10b981;">⚡ تست زنده و گزینش آی‌پی</span>
+                  <span id="cleanip-selected-summary" style="font-size:11px; padding:2px 8px; border-radius:6px; background:rgba(16,185,129,0.12); color:#10b981; font-weight:600;">۰ انتخاب شده</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <button id="cleanip-ping-all-btn" type="button" style="padding:6px 13px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
+                    ⚡ تست پینگ همه
+                  </button>
+                  <select id="cleanip-ping-mode-select" style="padding:5px 8px; border-radius:8px; font-size:11px; outline:none; cursor:pointer;">
+                    <option value="server">🌐 سرور (سریع)</option>
+                    <option value="browser">💻 مرورگر شما</option>
+                  </select>
+                  <button id="cleanip-toggle-manual-btn" type="button" style="padding:5px 9px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid #3f3f46; color:#e4e4e7; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                    ➕ افزودن دستی
+                  </button>
+                  <button id="cleanip-discover-cf-btn" type="button" style="padding:5px 9px; border-radius:8px; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                    🎲 اسکن رنج‌ها
+                  </button>
+                  <button id="cleanip-clean-dead-btn" type="button" title="حذف تمام آی‌پی‌هایی که در تست پینگ ناموفق یا قطعی بودند" style="padding:5px 9px; border-radius:8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#ef4444; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                    🗑️ پاکسازی فیلترشده‌ها
+                  </button>
+                </div>
               </div>
 
               <!-- Expandable Manual Add Drawer -->
-              <div id="cleanip-manual-drawer" style="display:none; padding:10px; border-radius:8px; background:rgba(0,0,0,0.25); border:1px solid #3f3f46; flex-direction:column; gap:6px;">
+              <div id="cleanip-manual-drawer" style="display:none; padding:8px 10px; border-radius:8px; background:rgba(0,0,0,0.25); border:1px solid #3f3f46; flex-direction:column; gap:6px;">
                 <div style="display:flex; align-items:center; justify-content:space-between;">
                   <span style="font-size:11px; font-weight:600; color:#10b981;">➕ چسباندن آی‌پی‌های دلخواه:</span>
                   <span style="font-size:10px; color:#71717a;">با کاما، فاصله یا اینتر جدا کنید</span>
                 </div>
                 <div style="display:flex; gap:6px;">
-                  <input type="text" id="cleanip-manual-ips-input" placeholder="مثال: 104.16.24.11, 104.17.150.10, 162.159.136.2" style="flex:1; padding:7px 10px; border-radius:6px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:11px; font-family:monospace; outline:none;">
-                  <button id="cleanip-manual-add-submit-btn" type="button" style="padding:7px 12px; border-radius:6px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; white-space:nowrap;">
+                  <input type="text" id="cleanip-manual-ips-input" placeholder="مثال: 104.16.24.11, 104.17.150.10, 162.159.136.2" style="flex:1; padding:6px 10px; border-radius:6px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:11px; font-family:monospace; outline:none;">
+                  <button id="cleanip-manual-add-submit-btn" type="button" style="padding:6px 12px; border-radius:6px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; white-space:nowrap;">
                     افزودن ↵
                   </button>
                 </div>
               </div>
 
-              <!-- Quick Selectors & Filters -->
-              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06);">
-                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <!-- Row 2: Filter Chips & Selection Controls -->
+              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+                <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
                   <button type="button" class="pg-cleanip-filter-chip active" data-isp="all">همه (<span id="count-all">0</span>)</button>
                   <button type="button" class="pg-cleanip-filter-chip" data-isp="mci">همراه اول (<span id="count-mci">0</span>)</button>
                   <button type="button" class="pg-cleanip-filter-chip" data-isp="mtn">ایرانسل (<span id="count-mtn">0</span>)</button>
@@ -618,13 +612,13 @@
                   <button type="button" class="pg-cleanip-filter-chip" data-isp="custom">سفارشی (<span id="count-custom">0</span>)</button>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
-                  <button id="cleanip-select-best-btn" type="button" style="padding:4px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:10px; font-weight:600; cursor:pointer;">
+                  <button id="cleanip-select-best-btn" type="button" style="padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:10px; font-weight:600; cursor:pointer;">
                     ✓ انتخاب بهترین‌ها
                   </button>
-                  <button id="cleanip-select-healthy-btn" type="button" style="padding:4px 8px; border-radius:6px; background:rgba(255,255,255,0.06); color:#a1a1aa; border:1px solid #3f3f46; font-size:10px; cursor:pointer;">
-                    ✓ انتخاب همه سالم‌ها
+                  <button id="cleanip-select-healthy-btn" type="button" style="padding:3px 8px; border-radius:6px; background:rgba(255,255,255,0.06); color:#a1a1aa; border:1px solid #3f3f46; font-size:10px; cursor:pointer;">
+                    ✓ همه سالم‌ها
                   </button>
-                  <button id="cleanip-deselect-ips-btn" type="button" style="padding:4px 6px; border-radius:6px; background:none; color:#71717a; border:none; font-size:10px; cursor:pointer;">
+                  <button id="cleanip-deselect-ips-btn" type="button" style="padding:3px 6px; border-radius:6px; background:none; color:#71717a; border:none; font-size:10px; cursor:pointer;">
                     ✕ لغو
                   </button>
                 </div>
@@ -636,16 +630,8 @@
               <div style="text-align:center; padding:20px; color:#71717a;">در حال بارگذاری لیست آی‌پی‌های تمیز...</div>
             </div>
 
-            <!-- Apply Selected IPs Action Bar -->
-            <div style="padding:10px 14px; border-radius:10px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); display:flex; align-items:center; justify-content:space-between; gap:10px;">
-              <div>
-                <span style="font-weight:700; color:#10b981;">اعمال آی‌پی‌های تیک‌خورده:</span>
-                <span id="cleanip-selected-summary" style="display:block; font-size:11px; color:#a1a1aa; margin-top:2px;">۰ آی‌پی انتخاب شده</span>
-              </div>
-              <button id="cleanip-apply-selected-btn" type="button" style="padding:8px 16px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:12px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(16,185,129,0.3);">
-                🚀 اعمال روی هاست‌های انتخابی
-              </button>
-            </div>
+            <!-- Invisible hook for programmatic/test triggers -->
+            <button id="cleanip-apply-selected-btn" type="button" style="display:none;"></button>
           </div>
 
           <!-- TAB 3: CONFIG & DIAGNOSTIC -->
@@ -1421,65 +1407,70 @@
       };
     });
 
-    // Apply Selected IPs to Hosts Button Handler
+    // Apply Selected IPs to Hosts
+    const handleApplySelectedIps = async () => {
+      const selectedIps = candidateIpsList.filter(c => c.selected === true).map(c => c.ip);
+      if (selectedIps.length === 0) {
+        showBanner('error', '⚠️ لطفاً حداقل یک آی‌پی را با تیک در جدول انتخاب کنید.');
+        return;
+      }
+
+      const targetHostIds = Array.from(document.querySelectorAll('.cleanip-host-cb:checked')).map(cb => Number(cb.value));
+      if (targetHostIds.length === 0) {
+        switchTab(tabHosts, paneHosts);
+        showBanner('error', '⚠️ لطفاً ابتدا حداقل یک هاست را از تب «هاست‌های هدف» تیک بزنید تا آی‌پی‌ها روی آن اعمال شوند.');
+        return;
+      }
+
+      const triggerBtn = document.getElementById('cleanip-trigger-scan');
+      if (triggerBtn) triggerBtn.disabled = true;
+      const origText = triggerBtn ? triggerBtn.innerHTML : '';
+      if (triggerBtn) triggerBtn.innerHTML = `در حال اعمال روی هاست‌ها... ⏳`;
+
+      try {
+        const res = await fetch('/api/cleanip/apply-selected', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            host_ids: targetHostIds,
+            selected_ips: selectedIps
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showBanner('success', `
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <p style="font-weight:700;">✅ ${data.message}</p>
+              <p style="font-size:11px;">هاست‌های آپدیت‌شده: ${(data.updated_hosts || []).join(' ، ')}</p>
+              <p style="font-size:11px; font-family:monospace;">آی‌پی‌ها: ${selectedIps.join(', ')}</p>
+            </div>
+          `);
+
+          // Update active list in Config tab
+          const activeList = document.getElementById('cleanip-active-ips-list');
+          if (activeList) {
+            activeList.innerHTML = selectedIps.map(ip => `
+              <span style="padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);">
+                ${ip}
+              </span>
+            `).join('');
+          }
+        } else {
+          showBanner('error', `❌ خطا: ${data.detail || 'اعمال آی‌پی‌ها ناموفق بود.'}`);
+        }
+      } catch (e) {
+        showBanner('error', `خطای ارتباط: ${e.message}`);
+      } finally {
+        if (triggerBtn) {
+          triggerBtn.disabled = false;
+          triggerBtn.innerHTML = origText;
+        }
+      }
+    };
+
     const applySelectedBtn = document.getElementById('cleanip-apply-selected-btn');
     if (applySelectedBtn) {
-      applySelectedBtn.onclick = async () => {
-        const selectedIps = candidateIpsList.filter(c => c.selected === true).map(c => c.ip);
-        if (selectedIps.length === 0) {
-          showBanner('error', '⚠️ لطفاً حداقل یک آی‌پی را با تیک در جدول انتخاب کنید.');
-          return;
-        }
-
-        const targetHostIds = Array.from(document.querySelectorAll('.cleanip-host-cb:checked')).map(cb => Number(cb.value));
-        if (targetHostIds.length === 0) {
-          switchTab(tabHosts, paneHosts);
-          showBanner('error', '⚠️ لطفاً ابتدا حداقل یک هاست را از تب «هاست‌های هدف» تیک بزنید تا آی‌پی‌ها روی آن اعمال شوند.');
-          return;
-        }
-
-        applySelectedBtn.disabled = true;
-        const origText = applySelectedBtn.innerHTML;
-        applySelectedBtn.innerHTML = `در حال اعمال روی هاست‌ها... ⏳`;
-
-        try {
-          const res = await fetch('/api/cleanip/apply-selected', {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-              host_ids: targetHostIds,
-              selected_ips: selectedIps
-            })
-          });
-          const data = await res.json();
-          if (res.ok) {
-            showBanner('success', `
-              <div style="display:flex; flex-direction:column; gap:4px;">
-                <p style="font-weight:700;">✅ ${data.message}</p>
-                <p style="font-size:11px;">هاست‌های آپدیت‌شده: ${(data.updated_hosts || []).join(' ، ')}</p>
-                <p style="font-size:11px; font-family:monospace;">آی‌پی‌ها: ${selectedIps.join(', ')}</p>
-              </div>
-            `);
-
-            // Update active list in Config tab
-            const activeList = document.getElementById('cleanip-active-ips-list');
-            if (activeList) {
-              activeList.innerHTML = selectedIps.map(ip => `
-                <span style="padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);">
-                  ${ip}
-                </span>
-              `).join('');
-            }
-          } else {
-            showBanner('error', `❌ خطا: ${data.detail || 'اعمال آی‌پی‌ها ناموفق بود.'}`);
-          }
-        } catch (e) {
-          showBanner('error', `خطای ارتباط: ${e.message}`);
-        } finally {
-          applySelectedBtn.disabled = false;
-          applySelectedBtn.innerHTML = origText;
-        }
-      };
+      applySelectedBtn.onclick = handleApplySelectedIps;
     }
 
     // Load candidate IPs initially
@@ -1655,11 +1646,8 @@
     document.getElementById('cleanip-trigger-scan').onclick = async () => {
       // If user is currently in Tab 2, route directly to apply selected IPs!
       if (panePing && panePing.style.display !== 'none') {
-        const applyBtn = document.getElementById('cleanip-apply-selected-btn');
-        if (applyBtn) {
-          applyBtn.click();
-          return;
-        }
+        await handleApplySelectedIps();
+        return;
       }
 
       const payload = getFormPayload();
