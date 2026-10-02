@@ -129,3 +129,31 @@ def test_diagnose_endpoint(client, monkeypatch):
     data = res.json()
     assert data["overall_healthy"] is True
     assert data["port"] == 443
+
+
+def test_ping_candidates_endpoint(client, monkeypatch):
+    """Test /ping-candidates endpoint"""
+    async def mock_latency(ip, *args, **kwargs):
+        return 95.0
+
+    monkeypatch.setattr("backend.cleanip_router.check_ip_latency", mock_latency)
+    res = client.post("/api/cleanip/ping-candidates", json={"ips": ["104.16.24.11", "104.16.25.11"]})
+    assert res.status_code == 200
+    data = res.json()
+    assert "results" in data
+    assert len(data["results"]) == 2
+    assert data["results"][0]["latency_ms"] == 95.0
+    assert data["results"][0]["reachable"] is True
+
+
+def test_apply_selected_endpoint(client):
+    """Test /apply-selected endpoint"""
+    res = client.post("/api/cleanip/apply-selected", json={
+        "host_ids": [1, 2],
+        "selected_ips": ["104.16.24.11", "104.17.150.10"]
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert len(data["applied_ips"]) == 2
+    assert len(data["updated_hosts"]) == 2

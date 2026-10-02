@@ -4,9 +4,11 @@ Safely integrates with PasarGuard host management without modifying database sch
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
@@ -82,7 +84,7 @@ def get_current_settings() -> CleanIPSettings:
     return CleanIPSettings.model_validate(raw)
 
 
-CURRENT_VERSION = "1.6.0"
+CURRENT_VERSION = "1.7.0"
 RAW_BASE_URL = "https://raw.githubusercontent.com/RaMiNZer0/pasarguard-cleanip/main"
 
 
@@ -141,10 +143,10 @@ async def get_status(db=Depends(get_db), _=Depends(require_permission("hosts", "
 
 @router.get("/candidates")
 async def get_candidates(_=Depends(require_permission("hosts", "read"))):
-    """Returns candidate clean IPs for client-side browser latency probe."""
+    """Returns candidate clean IPs categorized by operator for testing and manual selection."""
     from backend.cleanip_engine import get_candidate_probe_list
     settings = get_current_settings()
-    candidates = get_candidate_probe_list(limit=18)
+    candidates = get_candidate_probe_list(per_isp_limit=10)
 
     # Prepend custom IPs if user configured any
     if settings.custom_ips:
@@ -155,6 +157,49 @@ async def get_candidates(_=Depends(require_permission("hosts", "read"))):
         candidates = custom_items + candidates
 
     return {"candidates": candidates}
+
+
+class PingCandidatesRequest(BaseModel):
+    ips: Optional[List[str]] = None
+    port: int = 443
+    timeout: float = 2.0
+
+
+@router.post("/ping-candidates")
+async def ping_candidates(
+    payload: PingCandidatesRequest,
+    _=Depends(require_permission("hosts", "read")),
+):
+    """
+    Executes concurrent server-side latency tests for candidate IPs.
+    Returns latency in ms and reachability status for each IP.
+    """
+    ips_to_test = payload.ips or []
+    if not ips_to_test:
+        from backend.cleanip_engine import get_candidate_probe_list
+        candidates = get_candidate_probe_list(per_isp_limit=10)
+        settings = get_current_settings()
+        if settings.custom_ips:
+            ips_to_test = [ip.strip() for ip in settings.custom_ips if ip.strip()]
+        for c in candidates:
+            if c["ip"] not in ips_to_test:
+                ips_to_test.append(c["ip"])
+
+    port = payload.port or 443
+    timeout = payload.timeout or 2.0
+
+    async def _test(ip: str):
+        lat = await check_ip_latency(ip, port=port, timeout=timeout)
+        return {
+            "ip": ip,
+            "port": port,
+            "latency_ms": lat,
+            "reachable": lat > 0,
+        }
+
+    tasks = [_test(ip) for ip in ips_to_test]
+    results = await asyncio.gather(*tasks)
+    return {"results": results}
 
 
 @router.get("/check-update")
@@ -457,4 +502,80 @@ async def test_single_ip(ip: str, port: int = 443, _=Depends(require_permission(
         "port": port,
         "latency_ms": lat,
         "reachable": lat > 0,
+    }
+
+
+class ApplySelectedRequest(BaseModel):
+    host_ids: List[int]
+    selected_ips: List[str]
+
+
+@router.post("/apply-selected")
+async def apply_selected_ips(
+    payload: ApplySelectedRequest,
+    db=Depends(get_db),
+    admin=Depends(require_permission("hosts", "update")),
+):
+    """
+    Directly applies user-selected clean IPs to target hosts.
+    Gives the admin full manual choice over which verified IPs are applied.
+    """
+    if not payload.host_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="حداقل یک هاست هدف باید انتخاب شود (No hosts selected)."
+        )
+
+    valid_ips = [
+        ip.strip() for ip in payload.selected_ips
+        if re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", ip.strip())
+    ]
+    if not valid_ips:
+        raise HTTPException(
+            status_code=400,
+            detail="هیچ آی‌پی معتبری برای اعمال انتخاب نشده است (No valid clean IPs provided)."
+        )
+
+    updated_hosts = []
+    for host_id in payload.host_ids:
+        host_remark = f"Host #{host_id}"
+        if PASARGUARD_NATIVE:
+            try:
+                current_host = await host_operator.get_validated_host(db=db, host_id=host_id)
+                host_remark = getattr(current_host, "remark", f"Host #{host_id}")
+                host_model = BaseHost.model_validate(current_host)
+                host_dict = host_model.model_dump()
+                host_dict["address"] = set(valid_ips)
+
+                modified_host = CreateHost(**host_dict)
+                await host_operator.modify_host(
+                    db=db,
+                    host_id=host_id,
+                    modified_host=modified_host,
+                    admin=admin,
+                )
+                updated_hosts.append(host_remark)
+            except Exception as exc:
+                logger.error(f"Failed to apply selected IPs to host #{host_id}: {exc}")
+        else:
+            logger.info(f"[Standalone] Applied selected IPs {valid_ips} to host #{host_id}")
+            updated_hosts.append(host_remark)
+
+    # Save to history
+    event = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "target_host_ids": payload.host_ids,
+        "updated_hosts": updated_hosts,
+        "applied_ips": valid_ips,
+        "mode": "manual_selection",
+    }
+    history = _load_json(HISTORY_FILE, list)
+    history.append(event)
+    _save_json(HISTORY_FILE, history[-50:])
+
+    return {
+        "success": True,
+        "message": f"تعداد {len(valid_ips)} آی‌پی انتخابی روی {len(updated_hosts)} هاست با موفقیت اعمال شد.",
+        "updated_hosts": updated_hosts,
+        "applied_ips": valid_ips,
     }

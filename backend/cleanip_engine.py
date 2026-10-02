@@ -227,15 +227,20 @@ async def scan_and_rank_ips(
     return ranked_results
 
 
-def get_candidate_probe_list(limit: int = 15) -> List[Dict[str, Any]]:
+def get_candidate_probe_list(limit: Optional[int] = None, per_isp_limit: int = 10) -> List[Dict[str, Any]]:
     """
-    Returns candidate clean IPs categorized by operator for browser-side testing.
+    Returns candidate clean IPs categorized by operator for testing and manual selection.
     """
+    if limit is not None:
+        per_isp_limit = max(1, limit // 3)
+
     feed_data = fetch_community_ips()
     candidates = []
     seen = set()
 
-    for isp, items in feed_data.items():
+    for isp in ["mci", "mtn", "wifi"]:
+        items = feed_data.get(isp, [])
+        count = 0
         for item in items:
             ip = item["ip"]
             if ip not in seen:
@@ -247,11 +252,12 @@ def get_candidate_probe_list(limit: int = 15) -> List[Dict[str, Any]]:
                     "source": item.get("source", "community"),
                     "quality": "gold" if item.get("provider") in ("ircf.space", "vfarid") else "standard"
                 })
-            if len(candidates) >= limit:
-                break
-        if len(candidates) >= limit:
-            break
+                count += 1
+                if count >= per_isp_limit:
+                    break
 
+    if limit is not None:
+        return candidates[:limit]
     return candidates
 
 

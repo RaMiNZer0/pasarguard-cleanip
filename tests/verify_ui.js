@@ -2,7 +2,7 @@ const { chromium } = require('C:/Users/ZerO/AppData/Roaming/npm/node_modules/@pl
 const path = require('path');
 
 (async () => {
-  console.log('🚀 Starting Edge Playwright UI Verification for v1.6.0...');
+  console.log('🚀 Starting Edge Playwright UI Verification for v1.7.0...');
 
   const browser = await chromium.launch({
     channel: 'msedge',
@@ -34,17 +34,60 @@ const path = require('path');
   if (newScroll < 100) throw new Error('FAIL: Body did not scroll!');
   await page.screenshot({ path: path.resolve(__dirname, 'test_scrolled.png') });
 
-  // 2. Test Tab 2 (Config & Custom IPs)
-  console.log('⚙️ Switching to Tab 2 (Config & Custom IPs)...');
-  await page.click('#tab-btn-config');
+  // 2. Test Tab 2 (Interactive Clean IP Ping & Selection Workspace)
+  console.log('⚡ Switching to Tab 2 (Clean IP Ping & Selection)...');
+  await page.click('#tab-btn-ping');
+  
+  // Wait for candidate rows to be rendered
+  await page.waitForSelector('.pg-cleanip-ip-row', { timeout: 5000 });
+  const candidateRows = await page.$$('.pg-cleanip-ip-row');
+  console.log(`✅ Tab 2: Candidate rows found: ${candidateRows.length}`);
+  if (candidateRows.length === 0) {
+    throw new Error('FAIL: No candidate rows populated in Tab 2!');
+  }
+
+  // Click Ping All button
+  console.log('⚡ Clicking "تست پینگ همه آی‌پی‌ها" button...');
+  await page.click('#cleanip-ping-all-btn');
+  await page.waitForTimeout(800);
+
+  // Verify latency badge text
+  const badgeTexts = await page.$$eval('.cleanip-ip-latency-badge', elements => elements.map(el => el.innerText));
+  console.log(`✅ Tab 2: Latency badges after ping: ${JSON.stringify(badgeTexts)}`);
+  const hasLatencyMs = badgeTexts.some(txt => txt.includes('ms'));
+  if (!hasLatencyMs) {
+    throw new Error('FAIL: No ping latency results rendered in candidate rows!');
+  }
+
+  // Click "انتخاب بهترین‌ها" button (<150ms)
+  console.log('🎯 Clicking "انتخاب بهترین‌ها" (<150ms)...');
+  await page.click('#cleanip-select-best-btn');
   await page.waitForTimeout(300);
-  const customIpVal = await page.$eval('#cleanip-custom-ips-input', el => el.value);
-  console.log(`✅ Tab 2 Test: Custom IPs found: "${customIpVal}"`);
+
+  const checkedCount = await page.$$eval('.cleanip-select-ip-cb:checked', cbs => cbs.length);
+  console.log(`✅ Tab 2: Checked IPs count: ${checkedCount}`);
+  if (checkedCount === 0) {
+    throw new Error('FAIL: "انتخاب بهترین‌ها" failed to select any low-latency IPs!');
+  }
+
+  // Take screenshot of Tab 2 in action
   await page.screenshot({ path: path.resolve(__dirname, 'test_tab2.png') });
 
-  // 3. Test Tab 3 (Infrastructure Diagnostics & Live Probe)
-  console.log('📊 Switching to Tab 3 (Diagnostics & Live Probe)...');
-  await page.click('#tab-btn-status');
+  // Test "اعمال روی هاست‌های انتخابی"
+  console.log('🚀 Clicking "اعمال روی هاست‌های انتخابی" button...');
+  await page.click('#cleanip-apply-selected-btn');
+  await page.waitForTimeout(500);
+
+  const bannerVisible = await page.$eval('#cleanip-alert-banner', el => el.style.display !== 'none');
+  const bannerText = await page.$eval('#cleanip-alert-banner', el => el.innerText);
+  console.log(`✅ Tab 2: Apply Banner: visible=${bannerVisible}, text="${bannerText}"`);
+  if (!bannerVisible || !bannerText.includes('اعمال شد')) {
+    throw new Error('FAIL: Apply selected IPs banner not displayed properly!');
+  }
+
+  // 3. Test Tab 3 (Settings & Diagnostics)
+  console.log('⚙️ Switching to Tab 3 (Settings & Diagnostics)...');
+  await page.click('#tab-btn-config');
   await page.waitForTimeout(300);
 
   // Trigger End-to-End Infrastructure Diagnostic
@@ -57,15 +100,6 @@ const path = require('path');
   if (!diagResultVisible || !diagText.includes('زیرساخت')) {
     throw new Error('FAIL: Diagnostic result not displayed properly!');
   }
-
-  // Trigger Live In-Browser Probe
-  console.log('🔍 Clicking live in-browser probe button...');
-  await page.click('#cleanip-start-probe-btn');
-  // Wait for probe to complete
-  await page.waitForTimeout(1500);
-
-  const probeResultsVisible = await page.$eval('#cleanip-probe-results-container', el => el.style.display !== 'none');
-  console.log(`✅ Tab 3 Test: ProbeResultsVisible=${probeResultsVisible}`);
   await page.screenshot({ path: path.resolve(__dirname, 'test_tab3.png') });
 
   // 4. Test Outside Click (Dismissal)
@@ -79,6 +113,6 @@ const path = require('path');
   }
   await page.screenshot({ path: path.resolve(__dirname, 'test_closed.png') });
 
-  console.log('🎉 ALL v1.6.0 UI & PROBE TESTS PASSED PERFECTLY!');
+  console.log('🎉 ALL v1.7.0 UI & WORKSPACE TESTS PASSED PERFECTLY!');
   await browser.close();
 })();

@@ -104,6 +104,8 @@
             candidates: [
               { ip: '104.16.24.11', isp: 'mci', provider: 'ircf.space', quality: 'gold' },
               { ip: '104.17.150.10', isp: 'mtn', provider: 'vfarid', quality: 'gold' },
+              { ip: '162.159.136.2', isp: 'wifi', provider: 'ircf.space', quality: 'silver' },
+              { ip: '172.67.180.55', isp: 'wifi', provider: 'vfarid', quality: 'standard' },
               { ip: '198.51.100.1', isp: 'mci', provider: 'test', quality: 'standard' }
             ]
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -116,8 +118,8 @@
         if (url.includes('/api/cleanip/check-update')) {
           return new Response(JSON.stringify({
             has_update: false,
-            latest_version: '1.6.0',
-            changelog: 'سیستم عیب‌یابی و سنجش سلامت هوشمند ۳ لایه‌ای زیرساخت کلودفلر'
+            latest_version: '1.7.0',
+            changelog: 'پنل تعاملی تست زنده پینگ، جدول کاندیداها و انتخاب دستی آی‌پی‌ها'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         if (url.includes('/api/cleanip/diagnose')) {
@@ -145,6 +147,25 @@
               message: "پاسخ 101 Switching Protocols از هسته سرور پاسارگارد تایید شد.",
               advice: null
             }
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (url.includes('/api/cleanip/ping-candidates')) {
+          return new Response(JSON.stringify({
+            results: [
+              { ip: '104.16.24.11', port: 443, latency_ms: 78.5, reachable: true },
+              { ip: '104.17.150.10', port: 443, latency_ms: 112.0, reachable: true },
+              { ip: '162.159.136.2', port: 443, latency_ms: 142.0, reachable: true },
+              { ip: '172.67.180.55', port: 443, latency_ms: 220.0, reachable: true },
+              { ip: '198.51.100.1', port: 443, latency_ms: -1.0, reachable: false }
+            ]
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (url.includes('/api/cleanip/apply-selected')) {
+          return new Response(JSON.stringify({
+            success: true,
+            message: 'تعداد ۲ آی‌پی انتخابی روی ۲ هاست با موفقیت اعمال شد.',
+            updated_hosts: ['Host #1', 'Host #3'],
+            applied_ips: ['104.16.24.11', '104.17.150.10']
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         if (url.includes('/api/cleanip/settings') || url.includes('/api/cleanip/scan-and-apply')) {
