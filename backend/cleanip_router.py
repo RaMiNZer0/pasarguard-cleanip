@@ -81,6 +81,24 @@ def get_current_settings() -> CleanIPSettings:
     return CleanIPSettings.model_validate(raw)
 
 
+CURRENT_VERSION = "1.3.0"
+RAW_BASE_URL = "https://raw.githubusercontent.com/RaMiNZer0/pasarguard-cleanip/main"
+
+
+def _fetch_remote_text(url: str, timeout: int = 10) -> str:
+    import urllib.request
+    import ssl
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "PasarGuard-CleanIP/AutoUpdater", "Cache-Control": "no-cache"}
+    )
+    with urllib.request.urlopen(req, context=ctx, timeout=timeout) as resp:
+        return resp.read().decode("utf-8")
+
+
 @router.get("/status")
 async def get_status(_=Depends(require_permission("hosts", "read"))):
     """Returns current extension status, active settings, and last update info."""
@@ -89,10 +107,102 @@ async def get_status(_=Depends(require_permission("hosts", "read"))):
     latest_event = history[-1] if history else None
     return {
         "status": "active",
+        "version": CURRENT_VERSION,
         "settings": settings.model_dump(),
         "latest_update": latest_event,
         "is_native": PASARGUARD_NATIVE,
     }
+
+
+@router.get("/check-update")
+async def check_update(_=Depends(require_permission("hosts", "read"))):
+    """Checks GitHub for new Clean IP releases and changelog."""
+    import time
+    try:
+        url = f"{RAW_BASE_URL}/version.json?t={int(time.time())}"
+        data_text = _fetch_remote_text(url, timeout=6)
+        info = json.loads(data_text)
+        remote_version = info.get("version", CURRENT_VERSION)
+        has_update = remote_version.strip() != CURRENT_VERSION.strip()
+        return {
+            "has_update": has_update,
+            "current_version": CURRENT_VERSION,
+            "latest_version": remote_version,
+            "changelog": info.get("changelog", "بهینه‌سازی و بهبود کارایی"),
+        }
+    except Exception as e:
+        logger.warning(f"Failed to check updates from GitHub: {e}")
+        return {
+            "has_update": False,
+            "current_version": CURRENT_VERSION,
+            "latest_version": CURRENT_VERSION,
+            "changelog": "",
+            "error": str(e),
+        }
+
+
+@router.post("/self-update")
+async def self_update(
+    _=Depends(require_permission("hosts", "update"))
+):
+    """Downloads latest release files and applies in-place update without SSH."""
+    import time, re
+    timestamp = int(time.time())
+    updated_files = []
+
+    try:
+        # 1. Fetch version info
+        ver_text = _fetch_remote_text(f"{RAW_BASE_URL}/version.json?t={timestamp}", timeout=8)
+        remote_info = json.loads(ver_text)
+        new_version = remote_info.get("version", "latest")
+
+        # 2. Download and update Python backend in shared volume
+        python_dir = DATA_DIR / "python"
+        python_dir.mkdir(parents=True, exist_ok=True)
+
+        for mod_name in ["cleanip_router.py", "cleanip_engine.py"]:
+            code = _fetch_remote_text(f"{RAW_BASE_URL}/backend/{mod_name}?t={timestamp}")
+            (python_dir / mod_name).write_text(code, encoding="utf-8")
+            updated_files.append(mod_name)
+
+        # 3. Download and update Frontend plugin
+        plugin_code = _fetch_remote_text(f"{RAW_BASE_URL}/plugin/cleanip-panel.js?t={timestamp}")
+        
+        # Save to shared volume plugin dir
+        (DATA_DIR / "plugin").mkdir(parents=True, exist_ok=True)
+        (DATA_DIR / "plugin" / "cleanip-panel.js").write_text(plugin_code, encoding="utf-8")
+
+        # Copy directly to container web statics if running inside container
+        container_statics = Path("/code/dashboard/build/statics/cleanip-panel.js")
+        if container_statics.parent.exists():
+            container_statics.write_text(plugin_code, encoding="utf-8")
+            updated_files.append("cleanip-panel.js (container)")
+
+        # Update index.html cache-buster
+        container_index = Path("/code/dashboard/build/index.html")
+        if container_index.exists():
+            html_content = container_index.read_text(encoding="utf-8")
+            marker = "pg-cleanip-loader"
+            tag = f'<script id="{marker}" src="/statics/cleanip-panel.js?v={timestamp}" defer></script>'
+            pattern = re.compile(rf'<script\b[^>]*\bid=["\']{re.escape(marker)}["\'][^>]*>.*?</script>', re.I | re.S)
+            if pattern.search(html_content):
+                html_content = pattern.sub(tag, html_content, count=1)
+            elif '</body>' in html_content:
+                html_content = html_content.replace('</body>', f'  {tag}\n</body>', 1)
+            container_index.write_text(html_content, encoding="utf-8")
+
+        return {
+            "success": True,
+            "message": f"افزونه Clean IP با موفقیت به نسخه {new_version} بروزرسانی شد.",
+            "version": new_version,
+            "updated_files": updated_files,
+        }
+    except Exception as exc:
+        logger.error(f"Self-update failed: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"خطا در دریافت و اعمال آپدیت: {str(exc)}"
+        )
 
 
 def _resolve_port(port: Optional[int], inbound_tag: Optional[str]) -> Optional[int]:

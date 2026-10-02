@@ -1,13 +1,13 @@
 /**
  * PasarGuard Auto Clean IP - Web UI Dashboard Extension
- * Elegant Tabbed Interface with 100% theme compatibility and smart lifecycle.
+ * Elegant Tabbed Interface with 100% theme compatibility, smart lifecycle, and In-Panel Auto-Update.
  */
 (() => {
   'use strict';
 
   const TAB_ID = 'pg-cleanip-nav-button';
   const MODAL_ID = 'pg-cleanip-modal-overlay';
-  const VERSION = '1.2.0';
+  const VERSION = '1.3.0';
 
   function getAuthHeaders() {
     const token = localStorage.getItem('token') || '';
@@ -118,12 +118,13 @@
     `;
 
     try {
-      const [statusRes, hostsRes] = await Promise.all([
+      const [statusRes, hostsRes, updateRes] = await Promise.all([
         fetch('/api/cleanip/status', { headers: getAuthHeaders() }).then(r => r.json()).catch(() => ({})),
-        fetch('/api/cleanip/hosts', { headers: getAuthHeaders() }).then(r => r.json()).catch(() => ([]))
+        fetch('/api/cleanip/hosts', { headers: getAuthHeaders() }).then(r => r.json()).catch(() => ([])),
+        fetch('/api/cleanip/check-update', { headers: getAuthHeaders() }).then(r => r.json()).catch(() => ({}))
       ]);
 
-      renderModalContent(modal, statusRes, hostsRes);
+      renderModalContent(modal, statusRes, hostsRes, updateRes);
     } catch (err) {
       modal.innerHTML = `
         <div class="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900 rounded-2xl w-full max-w-md p-6 text-center shadow-xl" dir="rtl">
@@ -136,13 +137,14 @@
     }
   }
 
-  function renderModalContent(modal, statusData, hostsList) {
+  function renderModalContent(modal, statusData, hostsList, updateData) {
     const settings = statusData?.settings || {};
     const latest = statusData?.latest_update;
     const targetHostIds = Array.isArray(settings.target_host_ids) ? settings.target_host_ids : (settings.target_host_id ? [settings.target_host_id] : []);
+    const hasUpdate = updateData?.has_update;
 
     modal.innerHTML = `
-      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-xl h-[560px] max-h-[92vh] p-5 shadow-2xl flex flex-col text-right transition-all animate-in zoom-in-95 duration-150" dir="rtl">
+      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-xl h-[570px] max-h-[92vh] p-5 shadow-2xl flex flex-col text-right transition-all animate-in zoom-in-95 duration-150" dir="rtl">
         
         <!-- Header -->
         <div class="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
@@ -152,12 +154,33 @@
               <div class="flex items-center gap-2">
                 <h3 class="font-bold text-sm text-zinc-900 dark:text-zinc-100">Clean IP Auto-Pilot</h3>
                 <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-medium">v${VERSION}</span>
+                ${hasUpdate ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold animate-pulse">آپدیت جدید!</span>' : ''}
               </div>
               <p class="text-[11px] text-zinc-400">نوسازی خودکار آی‌پی‌های تمیز کلودفلر</p>
             </div>
             <div class="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 text-base">🛡️</div>
           </div>
         </div>
+
+        <!-- In-Panel Auto-Update Notification Banner -->
+        ${hasUpdate ? `
+          <div id="cleanip-update-banner" class="mt-2.5 p-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-300 dark:border-amber-700/60 flex items-center justify-between text-xs shrink-0 shadow-sm animate-in fade-in">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-lg">🚀</span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-amber-900 dark:text-amber-200">نسخه جدید موجود است (${updateData.latest_version})</span>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/60 font-mono">فعلی: v${VERSION}</span>
+                </div>
+                <p class="text-[11px] text-zinc-600 dark:text-zinc-300 truncate mt-0.5">${updateData.changelog || 'بهینه‌سازی کارایی و حل باگ‌ها'}</p>
+              </div>
+            </div>
+            <button id="cleanip-oneclick-update-btn" type="button" class="py-1.5 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-semibold text-xs shadow-sm transition flex items-center gap-1 cursor-pointer shrink-0 ms-2">
+              <span>آپدیت خودکار</span>
+              <span>⚡</span>
+            </button>
+          </div>
+        ` : ''}
 
         <!-- Navigation Tabs Bar -->
         <div class="flex items-center gap-1 p-1 my-2.5 bg-zinc-100/80 dark:bg-zinc-800/60 rounded-xl text-xs shrink-0 font-medium text-zinc-600 dark:text-zinc-400">
@@ -169,7 +192,8 @@
             <span>⚙️ تنظیمات و اپراتورها</span>
           </button>
           <button id="tab-btn-status" class="cleanip-tab-btn flex-1 py-1.5 px-3 rounded-lg transition-all text-center flex items-center justify-center gap-1.5 hover:text-zinc-900 dark:hover:text-zinc-200">
-            <span>📊 وضعیت و آی‌پی‌ها</span>
+            <span>📊 وضعیت و آپدیت</span>
+            ${hasUpdate ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>' : ''}
           </button>
         </div>
 
@@ -295,6 +319,18 @@
               <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               فعال
             </span>
+          </div>
+
+          <!-- In-Panel Auto Update Card -->
+          <div class="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-semibold text-zinc-800 dark:text-zinc-200">بروزرسانی افزونه:</span>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200">نسخه v${VERSION}</span>
+            </div>
+            <p class="text-[11px] text-zinc-400">امکان آپدیت خودکار آنلاین با یک کلیک بدون نیاز به ورود به سرور یا ترمینال.</p>
+            <button id="cleanip-manual-update-btn" type="button" class="w-full py-2 px-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700">
+              <span>🔄 بررسی و نصب آخرین نسخه از گیت‌هاب</span>
+            </button>
           </div>
 
           <!-- Latest active IPs -->
@@ -424,6 +460,41 @@
       banner.innerHTML = message;
       banner.classList.remove('hidden');
     }
+
+    // In-Panel One-Click Auto-Updater handler
+    const runSelfUpdate = async (btn) => {
+      btn.disabled = true;
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = `<span class="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> در حال دانلود و اعمال خودکار...`;
+      showBanner('success', '⏳ در حال دریافت آخرین فایل‌ها از گیت‌هاب و جایگزینی خودکار...');
+
+      try {
+        const res = await fetch('/api/cleanip/self-update', {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          showBanner('success', `🎉 ${data.message} صفحه در ۲ ثانیه آینده خودکار رفرش می‌شود...`);
+          setTimeout(() => location.reload(), 2000);
+        } else {
+          showBanner('error', `❌ خطا در بروزرسانی: ${data.detail || 'ناموفق بود'}`);
+          btn.innerHTML = originalHtml;
+          btn.disabled = false;
+        }
+      } catch (err) {
+        showBanner('error', `خطای شبکه در بروزرسانی: ${err.message}`);
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+      }
+    };
+
+    const oneClickBtn = document.getElementById('cleanip-oneclick-update-btn');
+    if (oneClickBtn) oneClickBtn.onclick = () => runSelfUpdate(oneClickBtn);
+
+    const manualBtn = document.getElementById('cleanip-manual-update-btn');
+    if (manualBtn) manualBtn.onclick = () => runSelfUpdate(manualBtn);
 
     // Save button
     document.getElementById('cleanip-save-settings').onclick = async () => {
