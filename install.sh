@@ -2,6 +2,7 @@
 # ==============================================================================
 # PasarGuard Auto Clean IP - Automated Installer
 # Installs and enables the Clean IP Auto-Pilot extension on PasarGuard server.
+# Compatible with both piped curl (`curl ... | sudo bash`) and git clone.
 # ==============================================================================
 set -euo pipefail
 
@@ -22,28 +23,52 @@ fi
 
 INSTALL_DIR="/opt/pasarguard-cleanip"
 DATA_DIR="/var/lib/pasarguard/cleanip"
+PYTHON_DIR="/var/lib/pasarguard/cleanip/python"
 PASARGUARD_DIR="/opt/pasarguard"
+ENV_FILE="${PASARGUARD_DIR}/.env"
+RAW_BASE="https://raw.githubusercontent.com/RaMiNZer0/pasarguard-cleanip/main"
 
-echo -e "\n${YELLOW}[1/5] Checking environment...${NC}"
-if [[ ! -d "/var/lib/pasarguard" && ! -d "${PASARGUARD_DIR}" ]]; then
-  echo -e "${RED}Warning: PasarGuard installation directory was not detected.${NC}"
-  echo -e "Proceeding anyway. Files will be placed in ${INSTALL_DIR}."
-fi
+echo -e "\n${YELLOW}[1/5] Checking environment and preparing directories...${NC}"
+mkdir -p "${INSTALL_DIR}/backend" "${INSTALL_DIR}/plugin" "${INSTALL_DIR}/systemd" "${DATA_DIR}" "${PYTHON_DIR}"
 
-mkdir -p "${INSTALL_DIR}" "${DATA_DIR}"
+# Helper to download or copy file
+fetch_file() {
+  local rel_path="$1"
+  local dest_path="$2"
+  local local_source=""
 
-echo -e "${YELLOW}[2/5] Copying extension files...${NC}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cp -rf "${SCRIPT_DIR}/backend" "${INSTALL_DIR}/"
-cp -rf "${SCRIPT_DIR}/plugin" "${INSTALL_DIR}/"
-cp -rf "${SCRIPT_DIR}/systemd" "${INSTALL_DIR}/"
+  # Check if running from cloned repository
+  if [[ -n "${BASH_SOURCE[0]:-}" && -f "$(dirname "${BASH_SOURCE[0]}")/${rel_path}" ]]; then
+    local_source="$(dirname "${BASH_SOURCE[0]}")/${rel_path}"
+    cp -f "${local_source}" "${dest_path}"
+  else
+    # Download from GitHub repository
+    curl -fsSL "${RAW_BASE}/${rel_path}" -o "${dest_path}"
+  fi
+}
+
+echo -e "${YELLOW}[2/5] Fetching and installing extension files...${NC}"
+fetch_file "backend/cleanip_engine.py" "${INSTALL_DIR}/backend/cleanip_engine.py"
+fetch_file "backend/cleanip_router.py" "${INSTALL_DIR}/backend/cleanip_router.py"
+fetch_file "plugin/cleanip-panel.js" "${INSTALL_DIR}/plugin/cleanip-panel.js"
+fetch_file "plugin/integrate-dashboard.sh" "${INSTALL_DIR}/plugin/integrate-dashboard.sh"
+fetch_file "systemd/pasarguard-cleanip-watcher.service" "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.service"
+fetch_file "systemd/pasarguard-cleanip-watcher.path" "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.path"
+
+chmod +x "${INSTALL_DIR}/plugin/integrate-dashboard.sh"
+
+# Copy python modules directly to shared volume mounted in PasarGuard container
+cp -f "${INSTALL_DIR}/backend/cleanip_engine.py" "${PYTHON_DIR}/cleanip_engine.py"
+cp -f "${INSTALL_DIR}/backend/cleanip_router.py" "${PYTHON_DIR}/cleanip_router.py"
+mkdir -p "${DATA_DIR}/plugin"
+cp -f "${INSTALL_DIR}/plugin/cleanip-panel.js" "${DATA_DIR}/plugin/cleanip-panel.js"
 
 # Default settings if not already existing
 SETTINGS_FILE="${DATA_DIR}/settings.json"
 if [[ ! -f "${SETTINGS_FILE}" ]]; then
   cat << 'EOF' > "${SETTINGS_FILE}"
 {
-  "target_host_id": null,
+  "target_host_ids": [],
   "enabled_isps": ["mci", "mtn", "wifi"],
   "limit_per_isp": 2,
   "auto_pilot": true,
@@ -53,28 +78,69 @@ if [[ ! -f "${SETTINGS_FILE}" ]]; then
 EOF
 fi
 
-echo -e "${YELLOW}[3/5] Integrating with PasarGuard Backend (FastAPI)...${NC}"
-# Setup sitecustomize.py hook for persistent Python bootstrapping
-PYTHON_HOOK_DIR="/var/lib/pasarguard/cleanip/python"
-mkdir -p "${PYTHON_HOOK_DIR}"
-
-cat << 'EOF' > "${PYTHON_HOOK_DIR}/sitecustomize.py"
+echo -e "${YELLOW}[3/5] Configuring PasarGuard Backend (FastAPI)...${NC}"
+# Setup sitecustomize.py hook for persistent Python bootstrapping inside container
+cat << 'EOF' > "${PYTHON_DIR}/sitecustomize.py"
 """
 PasarGuard Clean IP Bootstrapper
 """
-try:
-    import sys
-    sys.path.insert(0, "/opt/pasarguard-cleanip")
-    from backend.cleanip_router import router as cleanip_router
-    from app.routers import api_router
+import sys
+import os
 
-    # Register router if not already registered
-    if not any(getattr(r, "prefix", None) == "/api/cleanip" for r in api_router.routes):
-        api_router.include_router(cleanip_router)
-        sys.stderr.write("[CleanIP] Router successfully registered in PasarGuard API\n")
+# 1. Chain Zomorod or any other sitecustomize if present
+try:
+    zomorod_sc = "/var/lib/pasarguard/zomorod/python/sitecustomize.py"
+    if os.path.exists(zomorod_sc) and os.path.abspath(zomorod_sc) != os.path.abspath(__file__):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("zomorod_sitecustomize", zomorod_sc)
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+except Exception:
+    pass
+
+# 2. Register Clean IP router
+try:
+    if os.path.basename(sys.argv[0] or "") == "main.py":
+        cleanip_dir = "/var/lib/pasarguard/cleanip/python"
+        if cleanip_dir not in sys.path:
+            sys.path.insert(0, cleanip_dir)
+
+        from cleanip_router import router as cleanip_router
+        from app.routers import api_router
+
+        if not any(getattr(r, "prefix", None) == "/api/cleanip" for r in api_router.routes):
+            api_router.include_router(cleanip_router)
+            sys.stderr.write("[CleanIP] Router successfully registered in PasarGuard API\n")
 except Exception as e:
     sys.stderr.write(f"[CleanIP] Bootstrap notice: {e}\n")
 EOF
+
+# Ensure PYTHONPATH in /opt/pasarguard/.env includes cleanip python directory
+if [[ -f "${ENV_FILE}" ]]; then
+  python3 - "${ENV_FILE}" "${PYTHON_DIR}" << 'PY'
+import sys, re
+from pathlib import Path
+
+env_file = Path(sys.argv[1])
+python_dir = sys.argv[2]
+content = env_file.read_text(encoding="utf-8")
+
+pattern = re.compile(r'(?m)^\s*PYTHONPATH\s*=\s*["\']?(.*?)["\']?\s*$')
+match = pattern.search(content)
+if match:
+    existing = match.group(1).strip()
+    parts = [p for p in existing.split(":") if p and p != python_dir]
+    parts.append(python_dir)
+    new_val = ":".join(parts)
+    content = pattern.sub(f'PYTHONPATH="{new_val}"', content, count=1)
+else:
+    content = content.rstrip() + f'\nPYTHONPATH="{python_dir}"\n'
+
+env_file.write_text(content, encoding="utf-8")
+print("[CleanIP] Updated PYTHONPATH in /opt/pasarguard/.env")
+PY
+fi
 
 echo -e "${YELLOW}[4/5] Injecting web UI into PasarGuard Dashboard...${NC}"
 export PASARGUARD_ROOT="${PASARGUARD_DIR}"
@@ -86,7 +152,7 @@ if command -v systemctl >/dev/null 2>&1; then
   cp -f "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.service" /etc/systemd/system/
   cp -f "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.path" /etc/systemd/system/
   systemctl daemon-reload
-  systemctl enable --now pasarguard-cleanip-watcher.path || true
+  systemctl enable --now pasarguard-cleanip-watcher.path 2>/dev/null || true
 fi
 
 echo -e "${YELLOW}[5/5] Finalizing and restarting panel...${NC}"
@@ -94,9 +160,14 @@ echo -e "${YELLOW}[5/5] Finalizing and restarting panel...${NC}"
 CRON_CMD="0 */3 * * * curl -s -X POST http://127.0.0.1:8000/api/cleanip/scan-and-apply >/dev/null 2>&1"
 (crontab -l 2>/dev/null | grep -v "cleanip/scan-and-apply" ; echo "${CRON_CMD}") | crontab - || true
 
+# Restart panel safely
 if command -v pasarguard >/dev/null 2>&1; then
-  echo -e "Restarting PasarGuard safely via official CLI..."
+  echo -e "Restarting PasarGuard via official CLI..."
   pasarguard restart || true
+elif [[ -f "${PASARGUARD_DIR}/docker-compose.yml" ]] && command -v docker >/dev/null 2>&1; then
+  echo -e "Restarting PasarGuard container via Docker..."
+  docker compose -f "${PASARGUARD_DIR}/docker-compose.yml" restart pasarguard 2>/dev/null || \
+  docker restart pasarguard-pasarguard-1 2>/dev/null || true
 fi
 
 echo -e "\n${GREEN}======================================================${NC}"

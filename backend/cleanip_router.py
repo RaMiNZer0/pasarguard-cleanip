@@ -14,7 +14,10 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from .cleanip_engine import scan_and_rank_ips, check_ip_latency
+try:
+    from .cleanip_engine import scan_and_rank_ips, check_ip_latency
+except (ImportError, ValueError):
+    from cleanip_engine import scan_and_rank_ips, check_ip_latency
 
 logger = logging.getLogger("cleanip-router")
 
@@ -159,9 +162,10 @@ async def scan_and_apply(
         if PASARGUARD_NATIVE:
             try:
                 current_host = await host_operator.get_validated_host(db=db, host_id=host_id)
-                host_remark = current_host.remark
+                host_remark = getattr(current_host, "remark", f"Host #{host_id}")
 
-                host_dict = current_host.model_dump()
+                host_model = BaseHost.model_validate(current_host)
+                host_dict = host_model.model_dump()
                 host_dict["address"] = set(all_clean_ips)
 
                 modified_host = CreateHost(**host_dict)
