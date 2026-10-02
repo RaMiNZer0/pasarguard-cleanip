@@ -26,9 +26,9 @@ const path = require('path');
 
   // Verify Version Badge
   const versionText = await page.$eval('.pg-cleanip-header', el => el.innerText);
-  console.log(`✅ Version in header: ${versionText.includes('v1.8.0') ? 'v1.8.0 confirmed' : 'FAIL: version mismatch'}`);
-  if (!versionText.includes('v1.8.0')) {
-    throw new Error('FAIL: Header does not contain v1.8.0!');
+  console.log(`✅ Version in header: ${versionText.includes('v1.8.1') ? 'v1.8.1 confirmed' : 'FAIL: version mismatch'}`);
+  if (!versionText.includes('v1.8.1')) {
+    throw new Error('FAIL: Header does not contain v1.8.1!');
   }
 
   // 1. Test Tab 1 Scrolling & Sticky Bar

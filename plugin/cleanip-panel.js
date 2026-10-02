@@ -1,6 +1,6 @@
 /**
  * PasarGuard Auto Clean IP - Web UI Dashboard Extension
- * Version 1.8.0
+ * Version 1.8.1
  * Features:
  *  - Theme isolation & full select/option contrast hardening
  *  - Sticky Tab 2 toolbar & 2-row ergonomic action buttons
@@ -20,7 +20,7 @@
   const TAB_ID = 'pg-cleanip-nav-button';
   const MODAL_ID = 'pg-cleanip-modal-overlay';
   const STYLES_ID = 'pg-cleanip-injected-styles';
-  const VERSION = '1.8.0';
+  const VERSION = '1.8.1';
 
   // Inject Self-Contained Isolated CSS (Zero Tailwind dependency)
   function injectStyles() {
