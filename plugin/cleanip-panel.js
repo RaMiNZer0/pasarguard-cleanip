@@ -19,28 +19,45 @@
   }
 
   function injectNavTab() {
-    if (document.getElementById(TAB_ID)) return;
+    // 1. Floating pill button (guaranteed visible everywhere in the dashboard)
+    if (!document.getElementById('pg-cleanip-floating-pill')) {
+      const floatBtn = document.createElement('button');
+      floatBtn.id = 'pg-cleanip-floating-pill';
+      floatBtn.type = 'button';
+      floatBtn.className = 'fixed bottom-5 right-5 z-[100] inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-full text-emerald-800 dark:text-emerald-200 bg-emerald-500/15 dark:bg-emerald-950/80 border border-emerald-500/30 hover:border-emerald-500/60 hover:bg-emerald-500/25 transition-all shadow-lg backdrop-blur-md cursor-pointer animate-in fade-in duration-300';
+      floatBtn.innerHTML = `
+        <span class="text-sm">🛡️</span>
+        <span class="font-medium">Clean IP Auto-Pilot</span>
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+      `;
+      floatBtn.onclick = (e) => {
+        e.preventDefault();
+        openDashboardModal();
+      };
+      document.body.appendChild(floatBtn);
+    }
 
-    // Look for dashboard navigation tabs or action bars
-    const navBar = document.querySelector('nav[aria-label="Tabs"], nav.flex, [role="tablist"], header .flex.items-center');
-    if (!navBar) return;
-
-    const btn = document.createElement('button');
-    btn.id = TAB_ID;
-    btn.type = 'button';
-    btn.className = 'inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all shadow-sm';
-    btn.innerHTML = `
-      <span class="text-sm">🛡️</span>
-      <span>Clean IP Auto-Pilot</span>
-      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-    `;
-
-    btn.onclick = (e) => {
-      e.preventDefault();
-      openDashboardModal();
-    };
-
-    navBar.appendChild(btn);
+    // 2. Sidebar / Navigation integration (if sidebar menu exists)
+    if (!document.getElementById(TAB_ID)) {
+      const menuList = document.querySelector('[data-sidebar="menu"], aside nav ul, nav[data-sidebar="menu"], ul.flex-col');
+      if (menuList) {
+        const li = document.createElement('li');
+        li.id = TAB_ID;
+        li.className = 'px-2 py-1';
+        li.innerHTML = `
+          <button type="button" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-emerald-700 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-800/40 transition-colors">
+            <span class="text-sm">🛡️</span>
+            <span>Clean IP Auto-Pilot</span>
+            <span class="ms-auto w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          </button>
+        `;
+        li.onclick = (e) => {
+          e.preventDefault();
+          openDashboardModal();
+        };
+        menuList.appendChild(li);
+      }
+    }
   }
 
   async function openDashboardModal() {
