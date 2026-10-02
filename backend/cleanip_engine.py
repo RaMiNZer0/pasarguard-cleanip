@@ -1,17 +1,18 @@
 """
 Clean IP Engine for Cloudflare and CDN Proxies in Iran.
-Handles fetching, latency verification, and filtering per ISP.
+Handles multi-feed fetching, latency verification, custom IPs, and filtering per ISP.
 """
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
+import re
 import ssl
 import time
 import urllib.request
 import urllib.error
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger("cleanip-engine")
 
@@ -44,6 +45,7 @@ FALLBACK_IPS: Dict[str, List[str]] = {
 }
 
 COMMUNITY_FEED_URL = "https://raw.githubusercontent.com/vfarid/cf-clean-ips/main/list.json"
+IPV4_REGEX = re.compile(r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$")
 
 
 async def check_ip_latency(
@@ -79,31 +81,66 @@ async def check_ip_latency(
         return -1.0
 
 
-# Alias for backward compatibility
+# Backward compatibility alias
 test_ip_latency = check_ip_latency
 
 
-def fetch_community_ips(timeout: float = 3.0) -> Dict[str, List[str]]:
+def fetch_community_ips(timeout: float = 3.5) -> Dict[str, List[Dict[str, Any]]]:
     """
     Fetches the latest community-verified clean IPs.
+    Supports both structured operator items (vfarid/ircf.space) and flat key lists.
     Falls back to hardcoded FALLBACK_IPS if offline or request fails.
     """
+    result: Dict[str, List[Dict[str, Any]]] = {
+        "mci": [],
+        "mtn": [],
+        "wifi": []
+    }
+
     try:
         req = urllib.request.Request(
             COMMUNITY_FEED_URL,
-            headers={"User-Agent": "PasarGuard-CleanIP/1.0", "Accept": "application/json"},
+            headers={"User-Agent": "PasarGuard-CleanIP/1.5", "Accept": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8"))
-            if isinstance(data, dict):
-                return {
-                    "mci": data.get("mci", FALLBACK_IPS["mci"]),
-                    "mtn": data.get("mtn", FALLBACK_IPS["mtn"]),
-                    "wifi": data.get("wifi", FALLBACK_IPS["wifi"]),
-                }
+
+            # 1. Parse vfarid/ircf format with ipv4 list
+            if isinstance(data, dict) and "ipv4" in data and isinstance(data["ipv4"], list):
+                for item in data["ipv4"]:
+                    ip = item.get("ip")
+                    if not ip or not IPV4_REGEX.match(ip):
+                        continue
+                    
+                    op = (item.get("operator") or "").upper()
+                    provider = item.get("provider") or "community"
+
+                    record = {"ip": ip, "provider": provider, "source": "IRCF/vfarid"}
+
+                    if op == "MCI":
+                        result["mci"].append(record)
+                    elif op == "MTN":
+                        result["mtn"].append(record)
+                    elif op in ("MKH", "AST", "SHT", "PRS", "HWB", "MBT", "RTL", "ZTL", "WIFI"):
+                        result["wifi"].append(record)
+
+            # 2. Parse flat dictionary format (fallback format)
+            elif isinstance(data, dict):
+                for isp in ["mci", "mtn", "wifi"]:
+                    for ip in data.get(isp, []):
+                        if isinstance(ip, str) and IPV4_REGEX.match(ip):
+                            result[isp].append({"ip": ip, "provider": "feed", "source": "community"})
+
     except Exception as e:
-        logger.warning(f"Failed to fetch community clean IP feed, using fallback: {e}")
-    return FALLBACK_IPS.copy()
+        logger.warning(f"Failed to fetch community clean IP feed, falling back: {e}")
+
+    # Ensure fallbacks if any ISP list is empty
+    for isp, fallback_list in FALLBACK_IPS.items():
+        if not result[isp]:
+            for ip in fallback_list:
+                result[isp].append({"ip": ip, "provider": "fallback", "source": "system"})
+
+    return result
 
 
 async def scan_and_rank_ips(
@@ -111,11 +148,13 @@ async def scan_and_rank_ips(
     limit_per_isp: int = 2,
     max_concurrency: int = 10,
     timeout_per_ip: float = 1.8,
+    custom_ips: Optional[List[str]] = None,
 ) -> Dict[str, List[dict]]:
     """
     Tests and ranks clean IPs for requested ISPs.
+    Custom IPs supplied by the user are given top priority if verified.
     Returns:
-        Dict mapping ISP code -> list of {"ip": str, "latency_ms": float}
+        Dict mapping ISP code -> list of {"ip": str, "latency_ms": float, "source": str, "quality": str}
     """
     if not isps:
         isps = ["mci", "mtn", "wifi"]
@@ -123,27 +162,92 @@ async def scan_and_rank_ips(
     raw_candidates = fetch_community_ips()
     semaphore = asyncio.Semaphore(max_concurrency)
 
-    async def _test_with_limit(target_ip: str) -> dict:
+    async def _test_with_limit(candidate: dict) -> dict:
+        target_ip = candidate["ip"]
         async with semaphore:
             lat = await test_ip_latency(target_ip, timeout=timeout_per_ip)
-            return {"ip": target_ip, "latency_ms": lat}
+            return {
+                "ip": target_ip,
+                "latency_ms": lat,
+                "provider": candidate.get("provider", "community"),
+                "source": candidate.get("source", "verified"),
+                "quality": candidate.get("quality", "gold")
+            }
+
+    # Clean and validate custom user IPs if provided
+    valid_custom_ips: List[str] = []
+    if custom_ips:
+        for ip in custom_ips:
+            cleaned = str(ip).strip()
+            if IPV4_REGEX.match(cleaned) and cleaned not in valid_custom_ips:
+                valid_custom_ips.append(cleaned)
+
+    # Test custom IPs first if available
+    tested_custom_results: List[dict] = []
+    if valid_custom_ips:
+        custom_candidates = [{"ip": ip, "provider": "user", "source": "custom", "quality": "custom"} for ip in valid_custom_ips]
+        custom_tasks = [_test_with_limit(c) for c in custom_candidates]
+        custom_test_results = await asyncio.gather(*custom_tasks)
+        tested_custom_results = [r for r in custom_test_results if r["latency_ms"] > 0]
+        tested_custom_results.sort(key=lambda x: x["latency_ms"])
 
     ranked_results: Dict[str, List[dict]] = {}
 
     for isp in isps:
-        ips_to_test = list(dict.fromkeys(raw_candidates.get(isp, FALLBACK_IPS.get(isp, []))))
-        tasks = [_test_with_limit(ip) for ip in ips_to_test]
+        isp_candidates = raw_candidates.get(isp, [])
+        # Deduplicate candidates while preserving order
+        seen_ips = set()
+        deduped_candidates = []
+        for c in isp_candidates:
+            if c["ip"] not in seen_ips:
+                seen_ips.add(c["ip"])
+                deduped_candidates.append(c)
+
+        # Cap candidates to test to prevent slow scans
+        test_pool = deduped_candidates[:12]
+        tasks = [_test_with_limit(c) for c in test_pool]
         test_results = await asyncio.gather(*tasks)
 
         # Filter out unreachable IPs (latency == -1.0)
         healthy = [r for r in test_results if r["latency_ms"] > 0]
         healthy.sort(key=lambda x: x["latency_ms"])
 
-        if healthy:
-            ranked_results[isp] = healthy[:limit_per_isp]
+        # Prepend tested custom IPs to the top of the pool
+        combined_pool = tested_custom_results + healthy
+
+        if combined_pool:
+            ranked_results[isp] = combined_pool[:limit_per_isp]
         else:
             # Fallback to the first available if all simulated tests fail
-            first_ip = ips_to_test[0] if ips_to_test else "104.16.24.11"
-            ranked_results[isp] = [{"ip": first_ip, "latency_ms": 120.0}]
+            first_ip = isp_candidates[0]["ip"] if isp_candidates else "104.16.24.11"
+            ranked_results[isp] = [{"ip": first_ip, "latency_ms": 120.0, "source": "fallback", "quality": "standard"}]
 
     return ranked_results
+
+
+def get_candidate_probe_list(limit: int = 15) -> List[Dict[str, Any]]:
+    """
+    Returns candidate clean IPs categorized by operator for browser-side testing.
+    """
+    feed_data = fetch_community_ips()
+    candidates = []
+    seen = set()
+
+    for isp, items in feed_data.items():
+        for item in items:
+            ip = item["ip"]
+            if ip not in seen:
+                seen.add(ip)
+                candidates.append({
+                    "ip": ip,
+                    "isp": isp,
+                    "provider": item.get("provider", "IRCF"),
+                    "source": item.get("source", "community"),
+                    "quality": "gold" if item.get("provider") in ("ircf.space", "vfarid") else "standard"
+                })
+            if len(candidates) >= limit:
+                break
+        if len(candidates) >= limit:
+            break
+
+    return candidates

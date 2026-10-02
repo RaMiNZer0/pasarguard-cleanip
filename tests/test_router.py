@@ -100,3 +100,14 @@ def test_scan_and_apply_success(client, monkeypatch):
     # 3. Check history was logged
     status_res = client.get("/api/cleanip/status")
     assert status_res.json()["latest_update"] is not None
+
+
+def test_get_candidates(client):
+    """Test candidate IP listing for browser probe"""
+    res = client.get("/api/cleanip/candidates")
+    assert res.status_code == 200
+    data = res.json()
+    assert "candidates" in data
+    assert isinstance(data["candidates"], list)
+    assert len(data["candidates"]) > 0
+    assert "ip" in data["candidates"][0]

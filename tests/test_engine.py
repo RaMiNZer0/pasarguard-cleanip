@@ -3,11 +3,12 @@ Unit tests for Clean IP Engine
 """
 import pytest
 import asyncio
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from backend.cleanip_engine import (
     check_ip_latency,
     fetch_community_ips,
     scan_and_rank_ips,
+    get_candidate_probe_list,
     FALLBACK_IPS,
 )
 
@@ -17,7 +18,7 @@ async def test_check_ip_latency_success():
     """Test latency measurement when connection succeeds"""
     mock_reader = AsyncMock()
     mock_writer = AsyncMock()
-    mock_writer.close = AsyncMock()
+    mock_writer.close = MagicMock()
     mock_writer.wait_closed = AsyncMock()
 
     with patch("asyncio.open_connection", new_callable=AsyncMock) as mock_open:
@@ -43,6 +44,7 @@ def test_fetch_community_ips_fallback():
         assert "mtn" in ips
         assert "wifi" in ips
         assert len(ips["mci"]) > 0
+        assert "ip" in ips["mci"][0]
 
 
 @pytest.mark.asyncio
@@ -59,5 +61,28 @@ async def test_scan_and_rank_ips():
         results = await scan_and_rank_ips(isps=["mci"], limit_per_isp=2)
         assert "mci" in results
         assert len(results["mci"]) > 0
-        # Best ping should be first
         assert results["mci"][0]["latency_ms"] <= results["mci"][-1]["latency_ms"]
+
+
+@pytest.mark.asyncio
+async def test_custom_ips_priority():
+    """Test that custom IPs are prioritized when healthy"""
+    custom_ip = "198.51.100.42"
+
+    async def mock_latency(ip, **kwargs):
+        if ip == custom_ip:
+            return 30.0
+        return 75.0
+
+    with patch("backend.cleanip_engine.check_ip_latency", side_effect=mock_latency):
+        results = await scan_and_rank_ips(isps=["mci"], limit_per_isp=2, custom_ips=[custom_ip])
+        assert results["mci"][0]["ip"] == custom_ip
+        assert results["mci"][0]["quality"] == "custom"
+
+
+def test_get_candidate_probe_list():
+    """Test candidate probe list generation"""
+    candidates = get_candidate_probe_list(limit=5)
+    assert len(candidates) > 0
+    assert "ip" in candidates[0]
+    assert "isp" in candidates[0]

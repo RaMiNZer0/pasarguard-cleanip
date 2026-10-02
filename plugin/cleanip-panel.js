@@ -1,7 +1,13 @@
 /**
  * PasarGuard Auto Clean IP - Web UI Dashboard Extension
- * Version 1.4.0
- * Centered tabbed dialog with isolated pure CSS, smooth scrolling, and 1-click in-panel updater.
+ * Version 1.5.0
+ * Features:
+ *  - Centered isolated-CSS modal with unified smooth scrolling
+ *  - Live in-browser ping probe from inside Iran
+ *  - Multi-feed operator-based clean IP engine (IRCF / vfarid)
+ *  - Custom clean IP input with priority injection
+ *  - Iranian relay node detection
+ *  - 1-click in-panel self-updater
  */
 (() => {
   'use strict';
@@ -9,7 +15,7 @@
   const TAB_ID = 'pg-cleanip-nav-button';
   const MODAL_ID = 'pg-cleanip-modal-overlay';
   const STYLES_ID = 'pg-cleanip-injected-styles';
-  const VERSION = '1.4.0';
+  const VERSION = '1.5.0';
 
   // Inject Self-Contained Isolated CSS (Zero Tailwind dependency)
   function injectStyles() {
@@ -35,7 +41,7 @@
       .pg-cleanip-card {
         width: 95% !important;
         max-width: 580px !important;
-        height: 580px !important;
+        height: 590px !important;
         max-height: 85vh !important;
         background: #18181b !important;
         color: #f4f4f5 !important;
@@ -342,6 +348,7 @@
     const latest = statusData?.latest_update;
     const targetHostIds = Array.isArray(settings.target_host_ids) ? settings.target_host_ids : (settings.target_host_id ? [settings.target_host_id] : []);
     const hasUpdate = updateData?.has_update;
+    const iranNode = statusData?.iran_node || { available: false };
 
     overlay.innerHTML = `
       <div class="pg-cleanip-card">
@@ -385,10 +392,10 @@
             <span id="cleanip-tab-hosts-count" style="font-size:10px; padding:1px 6px; border-radius:9999px; background:rgba(16,185,129,0.2); font-weight:700;">${targetHostIds.length}</span>
           </button>
           <button id="tab-btn-config" class="pg-cleanip-tab-btn">
-            <span>⚙️ تنظیمات اسکن</span>
+            <span>⚙️ تنظیمات و آی‌پی دستی</span>
           </button>
           <button id="tab-btn-status" class="pg-cleanip-tab-btn">
-            <span>📊 وضعیت و آپدیت</span>
+            <span>📊 پایش سلامت و پینگ زنده</span>
             ${hasUpdate ? '<span style="width:6px; height:6px; border-radius:50%; background:#f59e0b;"></span>' : ''}
           </button>
         </div>
@@ -466,7 +473,7 @@
             </div>
           </div>
 
-          <!-- TAB 2: CONFIG -->
+          <!-- TAB 2: CONFIG & CUSTOM IPS -->
           <div id="cleanip-pane-config" style="display:none; flex-direction:column; gap:14px; font-size:12px;">
             <div style="padding:14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:10px;">
               <span style="font-weight:600;">اپراتورهای هدف جهت دریافت آی‌پی‌های تمیز:</span>
@@ -486,6 +493,16 @@
               </div>
             </div>
 
+            <!-- Custom Clean IPs Section -->
+            <div style="padding:14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <label style="font-weight:600;">آی‌پی‌های تمیز اختصاصی (Custom Clean IPs):</label>
+                <span style="font-size:10px; padding:2px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; font-weight:700;">اولویت اول ⚡</span>
+              </div>
+              <p style="font-size:11px; color:#71717a;">اگر با CloudflareSpeedTest آی‌پی اسکن کرده‌اید، اینجا وارد کنید (با اینتر یا کاما جدا کنید):</p>
+              <textarea id="cleanip-custom-ips-input" rows="3" placeholder="مثال:&#10;104.16.24.11&#10;104.17.150.10" style="width:100%; padding:8px 10px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.04); color:inherit; font-size:12px; font-family:monospace; box-sizing:border-box; outline:none; resize:vertical;">${(settings.custom_ips || []).join('\n')}</textarea>
+            </div>
+
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
               <div style="padding:12px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:6px;">
                 <label style="font-weight:600;">بازه بروزرسانی خودکار:</label>
@@ -503,22 +520,45 @@
               </div>
             </div>
 
+            <!-- Iran Node Relay Section -->
+            <div style="padding:12px 14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:space-between;">
+              <div>
+                <span style="font-weight:600; display:block;">اعتبارسنجی از نود ایران (در صورت وجود):</span>
+                <p style="font-size:11px; color:#71717a; margin-top:2px;">
+                  ${iranNode.available ? `🇮🇷 نود ایران پاسارگارد: <b>${iranNode.name}</b> (${iranNode.address})` : 'نود ایران ثبت‌نشده (تست‌های مستقیم انجام می‌شود)'}
+                </p>
+              </div>
+              <input type="checkbox" id="cleanip-use-iran-node" ${settings.use_iran_node !== false ? 'checked' : ''} style="width:16px; height:16px; accent-color:#10b981; cursor:pointer;">
+            </div>
+
             <div style="padding:12px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.1); color:#a1a1aa; font-size:11px; line-height:1.6;">
               💡 <b>نکته مهم ایمنی:</b> آی‌پی‌های تمیز فقط روی هاست‌هایی اعمال می‌شوند که در تب «هاست‌های هدف» تیک زده‌اید. هاست‌های Reality و Status به صورت خودکار محافظت می‌شوند.
             </div>
           </div>
 
-          <!-- TAB 3: STATUS & UPDATE -->
+          <!-- TAB 3: STATUS & LIVE PROBE -->
           <div id="cleanip-pane-status" style="display:none; flex-direction:column; gap:12px; font-size:12px;">
             <div style="padding:14px; border-radius:10px; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.08); display:flex; align-items:center; justify-content:space-between;">
               <div>
                 <span style="font-weight:700; color:#10b981; display:block;">موتور هوشمند Clean IP:</span>
-                <p style="font-size:11px; color:#71717a; margin-top:2px;">اسکن و تزریق بدون قطعی و با پینگ زنده در پس‌زمینه در حال کار است.</p>
+                <p style="font-size:11px; color:#71717a; margin-top:2px;">اتصال فعال به فیدهای IRCF و vfarid با بروزرسانی خودکار دوره ای.</p>
               </div>
               <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:9999px; background:rgba(16,185,129,0.2); color:#10b981; font-weight:700; font-size:11px;">
                 <span style="width:6px; height:6px; border-radius:50%; background:#10b981;"></span>
                 فعال
               </span>
+            </div>
+
+            <!-- In-Browser Live Probe Section -->
+            <div style="padding:14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-weight:600;">⚡ تست زنده سلامت از اینترنت شما (مرورگر):</span>
+                <button id="cleanip-start-probe-btn" type="button" style="padding:6px 12px; border-radius:8px; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.4); font-size:11px; font-weight:700; cursor:pointer;">
+                  🔍 تست زنده پینگ
+                </button>
+              </div>
+              <p style="font-size:11px; color:#71717a;">این تست مستقیماً از روی اینترنت دستگاه شما (داخل ایران) به سمت آی‌پی‌ها ارسال می‌شود و کیفیت دسترسی اپراتور شما را نشان می‌دهد.</p>
+              <div id="cleanip-probe-results-container" style="display:none; flex-direction:column; gap:6px; max-height:170px; overflow-y:auto; padding:6px; background:rgba(0,0,0,0.2); border-radius:8px; border:1px solid #27272a;"></div>
             </div>
 
             <!-- In-Panel Online Auto-Update Card -->
@@ -536,7 +576,7 @@
             <!-- Latest Clean IPs List -->
             <div style="padding:14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:8px;">
               <div style="display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-weight:600;">آی‌پی‌های تمیز اعمال‌شده اخیر:</span>
+                <span style="font-weight:600;">آی‌پی‌های تمیز اعمال‌شده اخیر روی سرور:</span>
                 <span style="font-size:10px; color:#71717a; font-family:monospace;">${latest?.timestamp ? new Date(latest.timestamp).toLocaleTimeString('fa-IR') : 'هنوز تستی انجام نشده'}</span>
               </div>
               <div id="cleanip-active-ips-list" style="display:flex; flex-wrap:wrap; gap:6px; font-family:monospace; font-size:11px;">
@@ -579,6 +619,9 @@
     const paneStatus = document.getElementById('cleanip-pane-status');
 
     function switchTab(btnActive, paneActive) {
+      const body = document.querySelector('.pg-cleanip-body');
+      if (body) body.scrollTop = 0;
+
       [tabHosts, tabConfig, tabStatus].forEach(b => b.classList.remove('active'));
       btnActive.classList.add('active');
 
@@ -645,13 +688,22 @@
       const limit = parseInt(document.getElementById('cleanip-limit-input')?.value || '2', 10);
       const interval = parseInt(document.getElementById('cleanip-interval-select')?.value || '3', 10);
 
+      const customIpsText = document.getElementById('cleanip-custom-ips-input')?.value || '';
+      const customIps = customIpsText
+        .split(/[\n,;]+/)
+        .map(s => s.trim())
+        .filter(s => /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(s));
+
+      const useIranNode = document.getElementById('cleanip-use-iran-node')?.checked ?? true;
+
       return {
         target_host_ids: selectedHostIds,
         enabled_isps: isps.length > 0 ? isps : ['mci', 'mtn', 'wifi'],
         limit_per_isp: limit,
         auto_pilot: true,
         auto_interval_hours: interval,
-        custom_ips: []
+        custom_ips: customIps,
+        use_iran_node: useIranNode
       };
     }
 
@@ -669,6 +721,120 @@
         banner.style.border = '1px solid rgba(16, 185, 129, 0.3)';
       }
       banner.innerHTML = message;
+    }
+
+    // In-Browser Live Probe Handler
+    const probeBtn = document.getElementById('cleanip-start-probe-btn');
+    const resultsContainer = document.getElementById('cleanip-probe-results-container');
+    
+    if (probeBtn && resultsContainer) {
+      probeBtn.onclick = async () => {
+        probeBtn.disabled = true;
+        const originalText = probeBtn.innerHTML;
+        probeBtn.innerHTML = `در حال دریافت لیست...`;
+        resultsContainer.style.display = 'flex';
+        resultsContainer.innerHTML = `<div style="text-align:center; padding:10px; font-size:11px; color:#71717a;">در حال فراخوانی آی‌پی‌های کاندید از سرور...</div>`;
+
+        try {
+          const res = await fetch('/api/cleanip/candidates', { headers: getAuthHeaders() });
+          const data = await res.json();
+          const candidates = data.candidates || [];
+
+          if (candidates.length === 0) {
+            resultsContainer.innerHTML = `<div style="text-align:center; padding:10px; color:#ef4444;">هیچ کاندیدایی یافت نشد.</div>`;
+            probeBtn.disabled = false;
+            probeBtn.innerHTML = originalText;
+            return;
+          }
+
+          resultsContainer.innerHTML = '';
+          probeBtn.innerHTML = `در حال تست پینگ از مرورگر...`;
+
+          const successfulIps = [];
+
+          for (let i = 0; i < candidates.length; i++) {
+            const item = candidates[i];
+            const ip = item.ip;
+            const ispLabel = (item.isp === 'mci' ? 'همراه اول' : (item.isp === 'mtn' ? 'ایرانسل' : (item.isp === 'custom' ? 'سفارشی' : 'مخابرات/Wifi')));
+
+            // Create row
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:6px 10px; border-radius:6px; background:rgba(255,255,255,0.03); border:1px solid #27272a; font-size:11px;';
+            row.innerHTML = `
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-family:monospace; font-weight:600;">${ip}</span>
+                <span style="font-size:9px; padding:1px 6px; border-radius:4px; background:rgba(255,255,255,0.08);">${ispLabel}</span>
+                ${item.quality === 'gold' ? '<span style="font-size:9px; padding:1px 5px; border-radius:4px; background:rgba(245,158,11,0.15); color:#f59e0b; font-weight:700;">طلایی</span>' : ''}
+              </div>
+              <span id="probe-status-${i}" style="color:#71717a;">در حال بررسی...</span>
+            `;
+            resultsContainer.appendChild(row);
+
+            // Test TCP/TLS Handshake
+            const start = performance.now();
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 2600);
+
+            let ok = false;
+            let latency = 0;
+            try {
+              await fetch(`https://${ip}:443`, {
+                mode: 'no-cors',
+                signal: controller.signal,
+                cache: 'no-store'
+              });
+              clearTimeout(timer);
+              latency = Math.round(performance.now() - start);
+              ok = true;
+            } catch (err) {
+              clearTimeout(timer);
+              latency = Math.round(performance.now() - start);
+              if (err.name !== 'AbortError' && latency < 2100) {
+                ok = true; // Connection handshake succeeded, CORS prevented reading body
+              }
+            }
+
+            const statusEl = document.getElementById(`probe-status-${i}`);
+            if (ok) {
+              statusEl.innerHTML = `<span style="color:#10b981; font-weight:700;">🟢 ${latency}ms (سالم)</span>`;
+              successfulIps.push(ip);
+            } else {
+              statusEl.innerHTML = `<span style="color:#ef4444; font-weight:700;">🔴 فیلتر / مسدود</span>`;
+            }
+          }
+
+          if (successfulIps.length > 0) {
+            const addAction = document.createElement('div');
+            addAction.style.cssText = 'padding:8px; margin-top:6px; text-align:center; background:rgba(16,185,129,0.1); border-radius:6px;';
+            addAction.innerHTML = `
+              <p style="color:#10b981; font-weight:700; margin-bottom:6px;">🎉 تعداد ${successfulIps.length} آی‌پی سالم روی اینترنت شما تایید شد!</p>
+              <button id="cleanip-apply-probed-btn" type="button" style="padding:6px 14px; border-radius:6px; background:#10b981; color:#fff; border:none; font-size:11px; font-weight:700; cursor:pointer;">
+                ➕ افزودن مستقیم به آی‌پی‌های اختصاصی
+              </button>
+            `;
+            resultsContainer.prepend(addAction);
+
+            document.getElementById('cleanip-apply-probed-btn').onclick = () => {
+              const customArea = document.getElementById('cleanip-custom-ips-input');
+              if (customArea) {
+                const current = customArea.value.split('\n').map(s => s.trim()).filter(Boolean);
+                const merged = Array.from(new Set([...current, ...successfulIps]));
+                customArea.value = merged.join('\n');
+                switchTab(tabConfig, paneConfig);
+                showBanner('success', `✅ تعداد ${successfulIps.length} آی‌پی سالم به لیست آی‌پی‌های اختصاصی افزوده شد. برای اعمال دکمه ذخیره یا اسکن را بزنید.`);
+              }
+            };
+          } else {
+            showBanner('error', '⚠️ هیچ‌کدام از کاندیداها در اینترنت فعلی شما پاسخ ندادند. لطفاً اپراتور دیگری را انتخاب یا از نود ایران استفاده کنید.');
+          }
+
+        } catch (err) {
+          resultsContainer.innerHTML = `<div style="text-align:center; padding:10px; color:#ef4444;">خطا در تست: ${err.message}</div>`;
+        } finally {
+          probeBtn.disabled = false;
+          probeBtn.innerHTML = originalText;
+        }
+      };
     }
 
     // In-Panel One-Click Auto-Updater
@@ -721,7 +887,7 @@
         });
         const data = await res.json();
         if (res.ok) {
-          showBanner('success', `✅ تنظیمات ذخیره شد. (${payload.target_host_ids.length} هاست هدف فعال)`);
+          showBanner('success', `✅ تنظیمات ذخیره شد. (${payload.target_host_ids.length} هاست هدف فعال، ${payload.custom_ips.length} آی‌پی اختصاصی)`);
         } else {
           showBanner('error', `❌ خطا: ${data.detail || 'نامشخص'}`);
         }

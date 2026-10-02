@@ -58,6 +58,7 @@ class CleanIPSettings(BaseModel):
     auto_pilot: bool = Field(default=True, description="Enable automated updates")
     auto_interval_hours: int = Field(default=3, ge=1, le=48)
     custom_ips: List[str] = Field(default_factory=list, description="Custom IP list to prioritize")
+    use_iran_node: bool = Field(default=True, description="Attempt verification via Iranian Node if present")
 
 
 def _load_json(file_path: Path, default_factory=dict) -> Any:
@@ -81,7 +82,7 @@ def get_current_settings() -> CleanIPSettings:
     return CleanIPSettings.model_validate(raw)
 
 
-CURRENT_VERSION = "1.3.0"
+CURRENT_VERSION = "1.5.0"
 RAW_BASE_URL = "https://raw.githubusercontent.com/RaMiNZer0/pasarguard-cleanip/main"
 
 
@@ -100,18 +101,60 @@ def _fetch_remote_text(url: str, timeout: int = 10) -> str:
 
 
 @router.get("/status")
-async def get_status(_=Depends(require_permission("hosts", "read"))):
+async def get_status(db=Depends(get_db), _=Depends(require_permission("hosts", "read"))):
     """Returns current extension status, active settings, and last update info."""
     settings = get_current_settings()
     history = _load_json(HISTORY_FILE, list)
     latest_event = history[-1] if history else None
+
+    # Detect Iranian node in PasarGuard DB if present
+    iran_node = {"available": False}
+    if PASARGUARD_NATIVE:
+        try:
+            from app.models.node import NodeListQuery
+            from app.db.crud.node import node_operator
+            nodes = await node_operator.get_nodes(db=db, query=NodeListQuery())
+            for n in nodes:
+                name = (getattr(n, "remark", "") or "").lower()
+                addr = str(getattr(n, "address", "") or "")
+                if any(k in name for k in ["iran", "ایران", "ir-", "tehran", "mci", "mtn", "ir "]) or \
+                   addr.startswith(("5.", "185.", "91.", "2.144.", "2.145.", "2.146.", "2.147.")):
+                    iran_node = {
+                        "available": True,
+                        "name": getattr(n, "remark", "Iran Node"),
+                        "address": addr,
+                        "connected": getattr(n, "is_connected", False)
+                    }
+                    break
+        except Exception as e:
+            logger.debug(f"Iran node inspection skipped: {e}")
+
     return {
         "status": "active",
         "version": CURRENT_VERSION,
         "settings": settings.model_dump(),
         "latest_update": latest_event,
         "is_native": PASARGUARD_NATIVE,
+        "iran_node": iran_node,
     }
+
+
+@router.get("/candidates")
+async def get_candidates(_=Depends(require_permission("hosts", "read"))):
+    """Returns candidate clean IPs for client-side browser latency probe."""
+    from backend.cleanip_engine import get_candidate_probe_list
+    settings = get_current_settings()
+    candidates = get_candidate_probe_list(limit=18)
+
+    # Prepend custom IPs if user configured any
+    if settings.custom_ips:
+        custom_items = [
+            {"ip": ip.strip(), "isp": "custom", "provider": "User Custom", "source": "custom", "quality": "custom"}
+            for ip in settings.custom_ips if ip.strip()
+        ]
+        candidates = custom_items + candidates
+
+    return {"candidates": candidates}
 
 
 @router.get("/check-update")
@@ -281,6 +324,7 @@ async def scan_and_apply(
     ranked = await scan_and_rank_ips(
         isps=settings.enabled_isps,
         limit_per_isp=settings.limit_per_isp,
+        custom_ips=settings.custom_ips,
     )
 
     all_clean_ips = []

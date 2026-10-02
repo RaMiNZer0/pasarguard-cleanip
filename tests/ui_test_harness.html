@@ -78,17 +78,34 @@
         if (url.includes('/api/cleanip/status')) {
           return new Response(JSON.stringify({
             success: true,
+            iran_node: {
+              available: true,
+              name: "نود ایران آسیاتک",
+              address: "5.200.14.88",
+              connected: true
+            },
             settings: {
               target_host_ids: [1, 3, 4],
               enabled_isps: ['mci', 'mtn'],
               limit_per_isp: 2,
               auto_interval_hours: 3,
-              auto_pilot: true
+              auto_pilot: true,
+              custom_ips: ["104.16.24.11"],
+              use_iran_node: true
             },
             latest_update: {
               timestamp: new Date().toISOString(),
               applied_ips: ['104.16.132.5', '104.17.200.12', '162.159.136.2']
             }
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (url.includes('/api/cleanip/candidates')) {
+          return new Response(JSON.stringify({
+            candidates: [
+              { ip: '104.16.24.11', isp: 'mci', provider: 'ircf.space', quality: 'gold' },
+              { ip: '104.17.150.10', isp: 'mtn', provider: 'vfarid', quality: 'gold' },
+              { ip: '198.51.100.1', isp: 'mci', provider: 'test', quality: 'standard' }
+            ]
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         if (url.includes('/api/cleanip/hosts')) {
@@ -99,8 +116,8 @@
         if (url.includes('/api/cleanip/check-update')) {
           return new Response(JSON.stringify({
             has_update: false,
-            latest_version: '1.4.0',
-            changelog: 'آپدیت رابط کاربری'
+            latest_version: '1.5.0',
+            changelog: 'سیستم اعتبارسنجی زنده پینگ از داخل مرورگر و نود ایران'
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         if (url.includes('/api/cleanip/settings') || url.includes('/api/cleanip/scan-and-apply')) {
