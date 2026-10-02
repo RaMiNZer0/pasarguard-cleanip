@@ -95,6 +95,20 @@ async def get_status(_=Depends(require_permission("hosts", "read"))):
     }
 
 
+def _resolve_port(port: Optional[int], inbound_tag: Optional[str]) -> Optional[int]:
+    if port:
+        return port
+    if inbound_tag:
+        import re
+        match = re.search(r'\b(20[589][0-9]|8443|8080|443|80|8880|\d{2,5})\b', inbound_tag)
+        if match:
+            try:
+                return int(match.group(1))
+            except ValueError:
+                pass
+    return None
+
+
 @router.get("/hosts")
 async def get_hosts_list(db=Depends(get_db), _=Depends(require_permission("hosts", "read"))):
     """Returns all available hosts in PasarGuard for UI selection."""
@@ -113,7 +127,7 @@ async def get_hosts_list(db=Depends(get_db), _=Depends(require_permission("hosts
             "id": h.id,
             "remark": h.remark,
             "address": list(h.address) if isinstance(h.address, (set, list)) else [str(h.address)],
-            "port": h.port,
+            "port": _resolve_port(h.port, h.inbound_tag),
             "inbound_tag": h.inbound_tag,
         }
         for h in hosts
@@ -129,6 +143,7 @@ async def update_settings(payload: CleanIPSettings, _=Depends(require_permission
 
 @router.post("/scan-and-apply")
 async def scan_and_apply(
+    payload: Optional[CleanIPSettings] = None,
     db=Depends(get_db),
     admin=Depends(require_permission("hosts", "update")),
 ):
@@ -136,11 +151,16 @@ async def scan_and_apply(
     Executes live scan across requested ISPs, extracts top healthy IPs,
     and updates all selected target hosts in PasarGuard via the official Host API.
     """
-    settings = get_current_settings()
+    if payload and payload.target_host_ids:
+        _save_json(SETTINGS_FILE, payload.model_dump())
+        settings = payload
+    else:
+        settings = get_current_settings()
+
     if not settings.target_host_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No target hosts selected. Please select at least one host in Clean IP settings first.",
+            detail="هیچ هاست هدفی انتخاب نشده است (No target hosts selected). لطفاً ابتدا حداقل یک هاست را تیک بزنید.",
         )
 
     # 1. Scan and rank clean IPs
