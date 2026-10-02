@@ -117,17 +117,31 @@
             <div id="cleanip-hosts-container" class="max-h-44 overflow-y-auto border border-zinc-200 dark:border-zinc-800 rounded-xl p-2 bg-zinc-50/50 dark:bg-zinc-800/40 divide-y divide-zinc-100 dark:divide-zinc-800/60 space-y-1">
               ${hostsList.length === 0 ? '<p class="text-xs text-zinc-400 text-center py-2">هیچ هاستی یافت نشد.</p>' : ''}
               ${hostsList.map(h => {
-                const isCdn = (h.remark && (h.remark.includes('☁') || h.remark.toLowerCase().includes('cdn') || h.remark.toLowerCase().includes('cleanip'))) || 
-                              (h.inbound_tag && (h.inbound_tag.toLowerCase().includes('xhttp') || h.inbound_tag.toLowerCase().includes('cloud')));
+                // Official Cloudflare proxy ports
+                const cfPorts = [80, 443, 2052, 2053, 2082, 2083, 2086, 2087, 2095, 2096, 8080, 8443, 8880];
+                const port = Number(h.port);
+                const isCfPort = cfPorts.includes(port);
+                
+                // Exclude dummy/status hosts, reality, and tunnels
+                const isDummyStatus = h.inbound_tag && (h.inbound_tag.toLowerCase().includes('status') || h.inbound_tag.toLowerCase().includes('wireguard') || h.inbound_tag.toLowerCase().includes('wg_'));
+                const isReality = (h.inbound_tag && h.inbound_tag.toLowerCase().includes('reality')) || (h.remark && h.remark.toLowerCase().includes('-ry'));
+                const isTunnel = h.inbound_tag && (h.inbound_tag.toLowerCase().includes('tun') || h.inbound_tag.toLowerCase().includes('tcp-tun'));
+                
+                const isCdn = !isDummyStatus && !isReality && !isTunnel && (
+                  isCfPort ||
+                  (h.remark && (h.remark.includes('☁') || h.remark.toLowerCase().includes('cdn') || h.remark.toLowerCase().includes('cleanip'))) || 
+                  (h.inbound_tag && (h.inbound_tag.toLowerCase().includes('xhttp') || h.inbound_tag.toLowerCase().includes('cloud') || h.inbound_tag.toLowerCase().includes('cf')))
+                );
+                
                 const isChecked = targetHostIds.includes(h.id);
                 return `
-                  <label class="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/80 cursor-pointer transition-colors text-xs" data-is-cdn="${isCdn ? '1' : '0'}">
+                  <label class="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/80 cursor-pointer transition-colors text-xs ${isReality || isDummyStatus ? 'opacity-50' : ''}" data-is-cdn="${isCdn ? '1' : '0'}">
                     <div class="flex items-center gap-2">
                       <input type="checkbox" class="cleanip-host-cb accent-emerald-600" value="${h.id}" ${isChecked ? 'checked' : ''}>
                       <span class="font-medium text-zinc-800 dark:text-zinc-200">${h.remark || 'Host #' + h.id}</span>
                       <span class="text-[10px] text-zinc-400 font-mono">(${h.inbound_tag || 'Port ' + (h.port || 'Auto')})</span>
                     </div>
-                    ${isCdn ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono">CDN ☁</span>' : '<span class="text-[10px] text-zinc-400">Direct / Other</span>'}
+                    ${isCdn ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono">CDN ☁ (Port ' + (h.port || '') + ')</span>' : (isReality ? '<span class="text-[10px] text-amber-500 font-medium">Reality ⚡</span>' : '<span class="text-[10px] text-zinc-400">Direct / Other</span>')}
                   </label>
                 `;
               }).join('')}
