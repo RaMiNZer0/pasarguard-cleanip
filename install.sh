@@ -153,14 +153,13 @@ PY
 fi
 
 echo -e "${YELLOW}[4/5] Applying configuration and restarting panel...${NC}"
-# Restart panel safely to load new PYTHONPATH into container
-if command -v pasarguard >/dev/null 2>&1; then
-  echo -e "Restarting PasarGuard via official CLI..."
-  pasarguard restart || true
-elif [[ -f "${PASARGUARD_DIR}/docker-compose.yml" ]] && command -v docker >/dev/null 2>&1; then
+if [[ -f "${PASARGUARD_DIR}/docker-compose.yml" ]] && command -v docker >/dev/null 2>&1; then
   echo -e "Restarting PasarGuard container via Docker..."
   docker compose -f "${PASARGUARD_DIR}/docker-compose.yml" restart pasarguard 2>/dev/null || \
   docker restart pasarguard-pasarguard-1 2>/dev/null || true
+elif command -v pasarguard >/dev/null 2>&1; then
+  echo -e "Restarting PasarGuard via CLI..."
+  timeout 10 pasarguard restart >/dev/null 2>&1 || true
 fi
 
 echo -e "${YELLOW}[5/5] Injecting web UI into PasarGuard Dashboard...${NC}"

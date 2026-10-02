@@ -41,7 +41,7 @@ version = sys.argv[3]
 content = html_path.read_text(encoding="utf-8")
 
 tag = f'<script id="{marker}" src="/statics/cleanip-panel.js?v={version}" defer></script>'
-pattern = re.compile(rf'<script\s+id=["\']{re.escape(marker)}["\'][^>]*>\s*</script>', re.I)
+pattern = re.compile(rf'<script\b[^>]*\bid=["\']{re.escape(marker)}["\'][^>]*>.*?</script>', re.I | re.S)
 
 if pattern.search(content):
     new_content = pattern.sub(tag, content, count=1)
@@ -125,7 +125,7 @@ version = sys.argv[3]
 content = html_path.read_text(encoding="utf-8")
 
 tag = f'<script id="{marker}" src="/statics/cleanip-panel.js?v={version}" defer></script>'
-pattern = re.compile(rf'<script\s+id=["\']{re.escape(marker)}["\'][^>]*>\s*</script>', re.I)
+pattern = re.compile(rf'<script\b[^>]*\bid=["\']{re.escape(marker)}["\'][^>]*>.*?</script>', re.I | re.S)
 
 if pattern.search(content):
     new_content = pattern.sub(tag, content, count=1)
