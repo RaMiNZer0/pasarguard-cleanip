@@ -627,17 +627,20 @@
                   <button type="button" class="pg-cleanip-filter-chip" data-isp="wifi">مخابرات/Wifi (<span id="count-wifi">0</span>)</button>
                   <button type="button" class="pg-cleanip-filter-chip" data-isp="custom">سفارشی (<span id="count-custom">0</span>)</button>
                 </div>
-                <div style="display:flex; align-items:center; gap:5px;">
+                <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
                   <button id="cleanip-select-all-btn" type="button" title="انتخاب همه آی‌پی‌های این دسته‌بندی" style="padding:3px 8px; border-radius:6px; background:rgba(255,255,255,0.08); color:#e4e4e7; border:1px solid #3f3f46; font-size:10px; font-weight:600; cursor:pointer;">
                     ✓ انتخاب همه
                   </button>
-                  <button id="cleanip-select-best-btn" type="button" style="padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:10px; font-weight:600; cursor:pointer;">
-                    ✓ انتخاب بهترین‌ها
+                  <button id="cleanip-select-best-btn" type="button" title="انتخاب آی‌پی‌های پرسرعت (زیر ۱۵۰ میلی‌ثانیه)" style="padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:10px; font-weight:600; cursor:pointer;">
+                    ✓ بهترین‌ها (&lt;۱۵۰ms)
                   </button>
-                  <button id="cleanip-select-healthy-btn" type="button" style="padding:3px 8px; border-radius:6px; background:rgba(255,255,255,0.06); color:#a1a1aa; border:1px solid #3f3f46; font-size:10px; cursor:pointer;">
+                  <button id="cleanip-select-medium-btn" type="button" title="انتخاب آی‌پی‌های با تاخیر متوسط (۱۵۰ تا ۲۵۰ میلی‌ثانیه)" style="padding:3px 8px; border-radius:6px; background:rgba(245,158,11,0.15); color:#f59e0b; border:1px solid rgba(245,158,11,0.3); font-size:10px; font-weight:600; cursor:pointer;">
+                    ✓ متوسط‌ها (۱۵۰-۲۵۰)
+                  </button>
+                  <button id="cleanip-select-healthy-btn" type="button" title="انتخاب تمام آی‌پی‌های سالم و پاسخ‌دهنده" style="padding:3px 8px; border-radius:6px; background:rgba(255,255,255,0.06); color:#a1a1aa; border:1px solid #3f3f46; font-size:10px; cursor:pointer;">
                     ✓ همه سالم‌ها
                   </button>
-                  <button id="cleanip-deselect-ips-btn" type="button" style="padding:3px 6px; border-radius:6px; background:none; color:#71717a; border:none; font-size:10px; cursor:pointer;">
+                  <button id="cleanip-deselect-ips-btn" type="button" title="لغو انتخاب تمام آی‌پی‌ها" style="padding:3px 6px; border-radius:6px; background:none; color:#71717a; border:none; font-size:10px; cursor:pointer;">
                     ✕ لغو
                   </button>
                 </div>
@@ -1011,6 +1014,14 @@
       }
     };
 
+    function sortCandidatesByLatency() {
+      candidateIpsList.sort((a, b) => {
+        const latA = (typeof a.latency_ms === 'number' && a.latency_ms > 0) ? a.latency_ms : 99999;
+        const latB = (typeof b.latency_ms === 'number' && b.latency_ms > 0) ? b.latency_ms : 99999;
+        return latA - latB;
+      });
+    }
+
     function renderCandidateRows(filterIsp = 'all') {
       if (!candidatesContainer) return;
       candidatesContainer.innerHTML = '';
@@ -1041,10 +1052,12 @@
         if (item.testing) {
           latencyHtml = `<span style="color:#38bdf8; font-size:10px;">در حال تست... ⏳</span>`;
         } else if (item.latency_ms !== undefined) {
-          if (item.latency_ms > 0 && item.latency_ms < 140) {
+          if (item.latency_ms > 0 && item.latency_ms < 150) {
             latencyHtml = `<span style="color:#10b981; font-weight:700; font-size:11px;">🟢 ${item.latency_ms}ms (عالی)</span>`;
-          } else if (item.latency_ms > 0 && item.latency_ms < 250) {
+          } else if (item.latency_ms >= 150 && item.latency_ms <= 250) {
             latencyHtml = `<span style="color:#f59e0b; font-weight:700; font-size:11px;">🟡 ${item.latency_ms}ms (متوسط)</span>`;
+          } else if (item.latency_ms > 250) {
+            latencyHtml = `<span style="color:#eab308; font-weight:700; font-size:11px;">🟠 ${item.latency_ms}ms (کند)</span>`;
           } else {
             latencyHtml = `<span style="color:#ef4444; font-weight:700; font-size:11px;">🔴 فیلتر / قطعی</span>`;
           }
@@ -1102,9 +1115,10 @@
               if (data.reachable && data.latency_ms < 250) item.selected = true;
             }
             if (data.reachable) {
-              const color = data.latency_ms < 140 ? '#10b981' : '#f59e0b';
-              const dot = data.latency_ms < 140 ? '🟢' : '🟡';
-              badge.innerHTML = `<span style="color:${color}; font-weight:700; font-size:11px;">${dot} ${data.latency_ms}ms</span>`;
+              const color = data.latency_ms < 150 ? '#10b981' : (data.latency_ms <= 250 ? '#f59e0b' : '#eab308');
+              const dot = data.latency_ms < 150 ? '🟢' : (data.latency_ms <= 250 ? '🟡' : '🟠');
+              const qual = data.latency_ms < 150 ? '(عالی)' : (data.latency_ms <= 250 ? '(متوسط)' : '(کند)');
+              badge.innerHTML = `<span style="color:${color}; font-weight:700; font-size:11px;">${dot} ${data.latency_ms}ms ${qual}</span>`;
             } else {
               badge.innerHTML = `<span style="color:#ef4444; font-weight:700; font-size:11px;">🔴 فیلتر / قطعی</span>`;
             }
@@ -1142,13 +1156,18 @@
         }
 
         item.latency_ms = ok ? latency : -1;
-        if (ok && latency < 220) item.selected = true;
+        if (ok && latency <= 250) {
+          item.selected = true;
+        } else if (!ok) {
+          item.selected = false;
+        }
 
         if (badge) {
           if (ok) {
-            const color = latency < 140 ? '#10b981' : '#f59e0b';
-            const dot = latency < 140 ? '🟢' : '🟡';
-            badge.innerHTML = `<span style="color:${color}; font-weight:700; font-size:11px;">${dot} ${latency}ms</span>`;
+            const color = latency < 150 ? '#10b981' : (latency <= 250 ? '#f59e0b' : '#eab308');
+            const dot = latency < 150 ? '🟢' : (latency <= 250 ? '🟡' : '🟠');
+            const qual = latency < 150 ? '(عالی)' : (latency <= 250 ? '(متوسط)' : '(کند)');
+            badge.innerHTML = `<span style="color:${color}; font-weight:700; font-size:11px;">${dot} ${latency}ms ${qual}</span>`;
           } else {
             badge.innerHTML = `<span style="color:#ef4444; font-weight:700; font-size:11px;">🔴 فیلتر / قطعی</span>`;
           }
@@ -1164,7 +1183,12 @@
         }
         updateSelectedIpsCount();
       }
-      showBanner('success', `🎉 تست زنده مرورگر با موفقیت تکمیل شد.`);
+
+      // Sort candidate list by lowest latency ascending, then re-render
+      sortCandidatesByLatency();
+      renderCandidateRows(currentFilterIsp);
+      const healthyCount = candidateIpsList.filter(c => typeof c.latency_ms === 'number' && c.latency_ms > 0).length;
+      showBanner('success', `🎉 تست زنده مرورگر با موفقیت تکمیل شد: تعداد ${healthyCount} آی‌پی سالم شناسایی و به ترتیب کمترین پینگ مرتب شدند.`);
     }
 
     // Ping All Button Handler
@@ -1199,21 +1223,17 @@
               const item = candidateIpsList.find(c => c.ip === r.ip);
               if (item) {
                 item.latency_ms = r.latency_ms;
-                if (r.reachable && r.latency_ms > 0 && r.latency_ms < 220) {
+                if (r.reachable && r.latency_ms > 0 && r.latency_ms <= 250) {
                   item.selected = true;
                 } else if (!r.reachable) {
                   item.selected = false;
                 }
               }
             });
-            // Sort candidate list by latency
-            candidateIpsList.sort((a, b) => {
-              const latA = (a.latency_ms && a.latency_ms > 0) ? a.latency_ms : 99999;
-              const latB = (b.latency_ms && b.latency_ms > 0) ? b.latency_ms : 99999;
-              return latA - latB;
-            });
+            // Sort candidate list by lowest latency ascending
+            sortCandidatesByLatency();
             renderCandidateRows(currentFilterIsp);
-            const healthyCount = candidateIpsList.filter(c => c.latency_ms > 0).length;
+            const healthyCount = candidateIpsList.filter(c => typeof c.latency_ms === 'number' && c.latency_ms > 0).length;
             showBanner('success', `🎉 تست پینگ سرور پایان یافت: تعداد ${healthyCount} آی‌پی سالم شناسایی و به ترتیب کمترین پینگ مرتب شدند.`);
           } catch (err) {
             showBanner('info', 'ℹ️ خطا در تست پینگ سرور؛ تست از مرورگر جایگزین شد...');
@@ -1371,7 +1391,7 @@
     if (cleanDeadBtn) {
       cleanDeadBtn.onclick = () => {
         const initialCount = candidateIpsList.length;
-        candidateIpsList = candidateIpsList.filter(c => c.latency_ms !== -1);
+        candidateIpsList = candidateIpsList.filter(c => !(typeof c.latency_ms === 'number' && c.latency_ms <= 0));
         const removed = initialCount - candidateIpsList.length;
         updateIspCounts();
         renderCandidateRows(currentFilterIsp);
@@ -1401,11 +1421,41 @@
     const selectBestBtn = document.getElementById('cleanip-select-best-btn');
     if (selectBestBtn) {
       selectBestBtn.onclick = () => {
-        candidateIpsList.forEach(c => {
-          c.selected = (c.latency_ms !== undefined && c.latency_ms > 0 && c.latency_ms < 150);
+        const targetList = currentFilterIsp === 'all'
+          ? candidateIpsList
+          : candidateIpsList.filter(c => c.isp === currentFilterIsp);
+        let count = 0;
+        targetList.forEach(c => {
+          c.selected = (typeof c.latency_ms === 'number' && c.latency_ms > 0 && c.latency_ms < 150);
+          if (c.selected) count++;
         });
         renderCandidateRows(currentFilterIsp);
-        showBanner('success', `✅ آی‌پی‌های با تاخیر زیر ۱۵۰ میلی‌ثانیه انتخاب شدند.`);
+        if (count > 0) {
+          showBanner('success', `✅ تعداد ${count} آی‌پی با تاخیر زیر ۱۵۰ میلی‌ثانیه انتخاب شدند.`);
+        } else {
+          showBanner('info', `هیچ آی‌پی با تاخیر زیر ۱۵۰ میلی‌ثانیه یافت نشد (ابتدا تست پینگ بگیرید یا از متوسط‌ها استفاده کنید).`);
+        }
+      };
+    }
+
+    // Select medium (150 - 250ms)
+    const selectMediumBtn = document.getElementById('cleanip-select-medium-btn');
+    if (selectMediumBtn) {
+      selectMediumBtn.onclick = () => {
+        const targetList = currentFilterIsp === 'all'
+          ? candidateIpsList
+          : candidateIpsList.filter(c => c.isp === currentFilterIsp);
+        let count = 0;
+        targetList.forEach(c => {
+          c.selected = (typeof c.latency_ms === 'number' && c.latency_ms >= 150 && c.latency_ms <= 250);
+          if (c.selected) count++;
+        });
+        renderCandidateRows(currentFilterIsp);
+        if (count > 0) {
+          showBanner('success', `✅ تعداد ${count} آی‌پی با تاخیر متوسط (۱۵۰ تا ۲۵۰ میلی‌ثانیه) انتخاب شدند.`);
+        } else {
+          showBanner('info', `هیچ آی‌پی در بازه ۱۵۰ تا ۲۵۰ میلی‌ثانیه یافت نشد.`);
+        }
       };
     }
 
@@ -1413,10 +1463,20 @@
     const selectHealthyBtn = document.getElementById('cleanip-select-healthy-btn');
     if (selectHealthyBtn) {
       selectHealthyBtn.onclick = () => {
-        candidateIpsList.forEach(c => {
-          c.selected = (c.latency_ms !== undefined && c.latency_ms > 0);
+        const targetList = currentFilterIsp === 'all'
+          ? candidateIpsList
+          : candidateIpsList.filter(c => c.isp === currentFilterIsp);
+        let count = 0;
+        targetList.forEach(c => {
+          c.selected = (typeof c.latency_ms === 'number' && c.latency_ms > 0);
+          if (c.selected) count++;
         });
         renderCandidateRows(currentFilterIsp);
+        if (count > 0) {
+          showBanner('success', `✅ تعداد ${count} آی‌پی سالم و فعال انتخاب شدند.`);
+        } else {
+          showBanner('info', `هنوز پینگ هیچ آی‌پی سالمی ثبت نشده است (لطفاً ابتدا تست پینگ بگیرید).`);
+        }
       };
     }
 
@@ -1426,6 +1486,7 @@
       deselectIpsBtn.onclick = () => {
         candidateIpsList.forEach(c => c.selected = false);
         renderCandidateRows(currentFilterIsp);
+        showBanner('info', `تمامی انتخاب‌ها لغو شدند.`);
       };
     }
 

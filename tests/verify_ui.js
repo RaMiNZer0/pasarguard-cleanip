@@ -134,9 +134,38 @@ const path = require('path');
   await page.waitForTimeout(300);
 
   const checkedCount = await page.$$eval('.cleanip-select-ip-cb:checked', cbs => cbs.length);
-  console.log(`✅ Tab 2: Checked IPs count: ${checkedCount}`);
+  console.log(`✅ Tab 2: Checked best IPs count: ${checkedCount}`);
   if (checkedCount === 0) {
     throw new Error('FAIL: "انتخاب بهترین‌ها" failed to select any low-latency IPs!');
+  }
+
+  // Test "متوسط‌ها (150-250)" button
+  console.log('🎯 Clicking "متوسط‌ها (۱۵۰-۲۵۰)"...');
+  await page.click('#cleanip-select-medium-btn');
+  await page.waitForTimeout(200);
+
+  // Test "همه سالم‌ها" button
+  console.log('🎯 Clicking "همه سالم‌ها"...');
+  await page.click('#cleanip-select-healthy-btn');
+  await page.waitForTimeout(200);
+  const healthyCheckedCount = await page.$$eval('.cleanip-select-ip-cb:checked', cbs => cbs.length);
+  console.log(`✅ Tab 2: Checked healthy IPs count: ${healthyCheckedCount}`);
+  if (healthyCheckedCount === 0) {
+    throw new Error('FAIL: "همه سالم‌ها" failed to select healthy IPs!');
+  }
+
+  // Verify ascending latency order of rendered rows
+  const latencies = await page.$$eval('.cleanip-ip-latency-badge', els => {
+    return els.map(el => {
+      const m = el.innerText.match(/(\d+(?:\.\d+)?)ms/);
+      return m ? parseFloat(m[1]) : 99999;
+    });
+  });
+  console.log(`✅ Tab 2: Sorted latencies: ${latencies.slice(0, 5).join('ms, ')}ms...`);
+  for (let i = 0; i < latencies.length - 1; i++) {
+    if (latencies[i] > latencies[i + 1] && latencies[i] !== 99999 && latencies[i + 1] !== 99999) {
+      throw new Error(`FAIL: Latencies not sorted ascending! ${latencies[i]} > ${latencies[i + 1]}`);
+    }
   }
 
   // Verify badge shows ratio or count
