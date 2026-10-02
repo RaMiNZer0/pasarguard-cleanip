@@ -46,7 +46,7 @@ def test_get_hosts_list(client):
 def test_update_settings(client):
     """Test saving settings"""
     payload = {
-        "target_host_id": 2,
+        "target_host_ids": [1, 2],
         "enabled_isps": ["mci", "mtn"],
         "limit_per_isp": 3,
         "auto_pilot": True,
@@ -57,26 +57,25 @@ def test_update_settings(client):
     assert res.status_code == 200
     data = res.json()
     assert data["success"] is True
-    assert data["settings"]["target_host_id"] == 2
+    assert data["settings"]["target_host_ids"] == [1, 2]
 
     # Verify status reflects the saved settings
     status_res = client.get("/api/cleanip/status")
-    assert status_res.json()["settings"]["target_host_id"] == 2
+    assert status_res.json()["settings"]["target_host_ids"] == [1, 2]
 
 
 def test_scan_and_apply_without_target_host(client):
     """Test scan-and-apply fails when no host is selected"""
-    # Default settings have target_host_id = None
     res = client.post("/api/cleanip/scan-and-apply")
     assert res.status_code == 400
-    assert "No target host selected" in res.json()["detail"]
+    assert "No target hosts selected" in res.json()["detail"]
 
 
 def test_scan_and_apply_success(client, monkeypatch):
-    """Test scan-and-apply succeeds when target host is set"""
-    # 1. Set target host
+    """Test scan-and-apply succeeds when target hosts are set"""
+    # 1. Set target hosts
     client.post("/api/cleanip/settings", json={
-        "target_host_id": 2,
+        "target_host_ids": [1, 2],
         "enabled_isps": ["mci"],
         "limit_per_isp": 2,
         "auto_pilot": True,
@@ -96,6 +95,7 @@ def test_scan_and_apply_success(client, monkeypatch):
     data = res.json()
     assert data["success"] is True
     assert "104.16.24.11" in data["applied_ips"]
+    assert len(data["updated_hosts"]) == 2
 
     # 3. Check history was logged
     status_res = client.get("/api/cleanip/status")

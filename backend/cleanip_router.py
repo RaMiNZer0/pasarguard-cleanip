@@ -49,7 +49,7 @@ except ImportError:
 
 
 class CleanIPSettings(BaseModel):
-    target_host_id: Optional[int] = Field(default=None, description="Host ID to update in PasarGuard")
+    target_host_ids: List[int] = Field(default_factory=list, description="List of target Host IDs to update in PasarGuard")
     enabled_isps: List[str] = Field(default=["mci", "mtn", "wifi"], description="Enabled ISPs")
     limit_per_isp: int = Field(default=2, ge=1, le=5)
     auto_pilot: bool = Field(default=True, description="Enable automated updates")
@@ -131,13 +131,13 @@ async def scan_and_apply(
 ):
     """
     Executes live scan across requested ISPs, extracts top healthy IPs,
-    and updates the target host in PasarGuard via the official Host API.
+    and updates all selected target hosts in PasarGuard via the official Host API.
     """
     settings = get_current_settings()
-    if not settings.target_host_id:
+    if not settings.target_host_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No target host selected. Please select a host in Clean IP settings first.",
+            detail="No target hosts selected. Please select at least one host in Clean IP settings first.",
         )
 
     # 1. Scan and rank clean IPs
@@ -152,48 +152,48 @@ async def scan_and_apply(
             if item["ip"] not in all_clean_ips:
                 all_clean_ips.append(item["ip"])
 
-    # 2. Update target host in PasarGuard safely
-    host_remark = "Host"
-    if PASARGUARD_NATIVE:
-        try:
-            current_host = await host_operator.get_validated_host(db=db, host_id=settings.target_host_id)
-            host_remark = current_host.remark
+    # 2. Update each target host in PasarGuard safely
+    updated_hosts = []
+    for host_id in settings.target_host_ids:
+        host_remark = f"Host #{host_id}"
+        if PASARGUARD_NATIVE:
+            try:
+                current_host = await host_operator.get_validated_host(db=db, host_id=host_id)
+                host_remark = current_host.remark
 
-            host_dict = current_host.model_dump()
-            host_dict["address"] = set(all_clean_ips)
+                host_dict = current_host.model_dump()
+                host_dict["address"] = set(all_clean_ips)
 
-            modified_host = CreateHost(**host_dict)
-            await host_operator.modify_host(
-                db=db,
-                host_id=settings.target_host_id,
-                modified_host=modified_host,
-                admin=admin,
-            )
-        except Exception as exc:
-            logger.error(f"Failed to update host in PasarGuard: {exc}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to update host in PasarGuard: {exc}",
-            )
-    else:
-        logger.info(f"[Standalone] Mock update host #{settings.target_host_id} with IPs: {all_clean_ips}")
+                modified_host = CreateHost(**host_dict)
+                await host_operator.modify_host(
+                    db=db,
+                    host_id=host_id,
+                    modified_host=modified_host,
+                    admin=admin,
+                )
+                updated_hosts.append(host_remark)
+            except Exception as exc:
+                logger.error(f"Failed to update host #{host_id} in PasarGuard: {exc}")
+        else:
+            logger.info(f"[Standalone] Mock update host #{host_id} with IPs: {all_clean_ips}")
+            updated_hosts.append(host_remark)
 
     # 3. Log history
     event = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "target_host_id": settings.target_host_id,
-        "host_remark": host_remark,
+        "target_host_ids": settings.target_host_ids,
+        "updated_hosts": updated_hosts,
         "applied_ips": all_clean_ips,
         "details": ranked,
     }
     history = _load_json(HISTORY_FILE, list)
     history.append(event)
-    # Keep last 50 events
     _save_json(HISTORY_FILE, history[-50:])
 
     return {
         "success": True,
-        "message": f"Successfully updated host '{host_remark}' with {len(all_clean_ips)} clean IPs",
+        "message": f"Successfully updated {len(updated_hosts)} host(s) with {len(all_clean_ips)} clean IPs",
+        "updated_hosts": updated_hosts,
         "applied_ips": all_clean_ips,
         "isp_results": ranked,
     }

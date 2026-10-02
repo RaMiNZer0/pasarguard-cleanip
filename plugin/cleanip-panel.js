@@ -82,13 +82,13 @@
   function renderModalContent(modal, statusData, hostsList) {
     const settings = statusData?.settings || {};
     const latest = statusData?.latest_update;
-    const targetHostId = settings.target_host_id;
+    const targetHostIds = Array.isArray(settings.target_host_ids) ? settings.target_host_ids : (settings.target_host_id ? [settings.target_host_id] : []);
 
     modal.innerHTML = `
-      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-xl p-6 shadow-2xl space-y-6 text-right transition-all" dir="rtl">
+      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-xl p-6 shadow-2xl space-y-5 text-right transition-all max-h-[90vh] flex flex-col" dir="rtl">
         
         <!-- Header -->
-        <div class="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-4">
+        <div class="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/80 pb-3">
           <button id="cleanip-close-x" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-100 text-lg transition-colors p-1">✕</button>
           <div class="flex items-center gap-2.5">
             <div>
@@ -102,15 +102,37 @@
           </div>
         </div>
 
-        <!-- Form fields -->
-        <div class="space-y-4 text-sm">
+        <!-- Body with scrolling -->
+        <div class="space-y-4 text-sm overflow-y-auto flex-1 pr-1 pl-1">
+          
+          <!-- Host Multi-Selection List -->
           <div>
-            <label class="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">هاست CDN هدف (Host):</label>
-            <select id="cleanip-host-input" class="w-full p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/60 text-zinc-900 dark:text-zinc-100 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500">
-              <option value="">-- انتخاب هاست برای اعمال Clean IP --</option>
-              ${hostsList.map(h => `<option value="${h.id}" ${h.id === targetHostId ? 'selected' : ''}>${h.remark} (Port: ${h.port || 'Auto'})</option>`).join('')}
-            </select>
-            <p class="text-[11px] text-zinc-400 mt-1">فیلد address این هاست به‌صورت خودکار با آی‌پی‌های سالم جایگزین می‌شود.</p>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">هاست‌های هدف (Hosts):</label>
+              <button id="cleanip-select-cdn-btn" type="button" class="text-[11px] text-emerald-600 hover:text-emerald-700 font-medium cursor-pointer">
+                ✓ انتخاب خودکار همه هاست‌های ☁ CDN
+              </button>
+            </div>
+            
+            <div id="cleanip-hosts-container" class="max-h-44 overflow-y-auto border border-zinc-200 dark:border-zinc-800 rounded-xl p-2 bg-zinc-50/50 dark:bg-zinc-800/40 divide-y divide-zinc-100 dark:divide-zinc-800/60 space-y-1">
+              ${hostsList.length === 0 ? '<p class="text-xs text-zinc-400 text-center py-2">هیچ هاستی یافت نشد.</p>' : ''}
+              ${hostsList.map(h => {
+                const isCdn = (h.remark && (h.remark.includes('☁') || h.remark.toLowerCase().includes('cdn') || h.remark.toLowerCase().includes('cleanip'))) || 
+                              (h.inbound_tag && (h.inbound_tag.toLowerCase().includes('xhttp') || h.inbound_tag.toLowerCase().includes('cloud')));
+                const isChecked = targetHostIds.includes(h.id);
+                return `
+                  <label class="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800/80 cursor-pointer transition-colors text-xs" data-is-cdn="${isCdn ? '1' : '0'}">
+                    <div class="flex items-center gap-2">
+                      <input type="checkbox" class="cleanip-host-cb accent-emerald-600" value="${h.id}" ${isChecked ? 'checked' : ''}>
+                      <span class="font-medium text-zinc-800 dark:text-zinc-200">${h.remark || 'Host #' + h.id}</span>
+                      <span class="text-[10px] text-zinc-400 font-mono">(${h.inbound_tag || 'Port ' + (h.port || 'Auto')})</span>
+                    </div>
+                    ${isCdn ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-mono">CDN ☁</span>' : '<span class="text-[10px] text-zinc-400">Direct / Other</span>'}
+                  </label>
+                `;
+              }).join('')}
+            </div>
+            <p class="text-[11px] text-zinc-400 mt-1">آی‌پی‌های تمیز همزمان فقط روی هاست‌های تیک‌خورده اعمال می‌شوند.</p>
           </div>
 
           <!-- ISP selection -->
@@ -151,9 +173,9 @@
 
           <!-- Latest active IPs badge -->
           ${latest ? `
-            <div class="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 space-y-2">
+            <div class="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 space-y-1.5">
               <div class="flex items-center justify-between text-xs">
-                <span class="font-semibold text-zinc-800 dark:text-zinc-200">آخرین آی‌پی‌های اعمال‌شده:</span>
+                <span class="font-semibold text-zinc-800 dark:text-zinc-200">آخرین بروزرسانی (${latest.updated_hosts?.length || 0} هاست):</span>
                 <span class="text-[10px] text-zinc-400 font-mono">${latest.timestamp ? new Date(latest.timestamp).toLocaleTimeString('fa-IR') : 'نامشخص'}</span>
               </div>
               <div class="flex flex-wrap gap-1.5 font-mono text-[11px]">
@@ -168,12 +190,12 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="flex gap-2.5 pt-2">
-          <button id="cleanip-trigger-scan" type="button" class="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition flex items-center justify-center gap-2 shadow-sm text-xs">
-            <span>⚡ اسکن و اعمال آنی</span>
+        <div class="flex gap-2.5 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+          <button id="cleanip-trigger-scan" type="button" class="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition flex items-center justify-center gap-2 shadow-sm text-xs cursor-pointer">
+            <span>⚡ اسکن و اعمال روی هاست‌های انتخابی</span>
           </button>
-          <button id="cleanip-save-settings" type="button" class="py-2.5 px-5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-medium rounded-xl transition text-xs">
-            ذخیره تنظیمات
+          <button id="cleanip-save-settings" type="button" class="py-2.5 px-5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-medium rounded-xl transition text-xs cursor-pointer">
+            ذخیره
           </button>
         </div>
       </div>
@@ -181,16 +203,26 @@
 
     document.getElementById('cleanip-close-x').onclick = () => modal.remove();
 
+    // Select all CDN button
+    document.getElementById('cleanip-select-cdn-btn').onclick = () => {
+      document.querySelectorAll('#cleanip-hosts-container label').forEach(lbl => {
+        const cb = lbl.querySelector('.cleanip-host-cb');
+        if (lbl.getAttribute('data-is-cdn') === '1' && cb) {
+          cb.checked = true;
+        }
+      });
+    };
+
     // Save button
     document.getElementById('cleanip-save-settings').onclick = async () => {
-      const selectedHost = document.getElementById('cleanip-host-input').value;
+      const selectedHostIds = Array.from(document.querySelectorAll('.cleanip-host-cb:checked')).map(cb => Number(cb.value));
       const isps = [];
       if (document.getElementById('isp-mci').checked) isps.push('mci');
       if (document.getElementById('isp-mtn').checked) isps.push('mtn');
       if (document.getElementById('isp-wifi').checked) isps.push('wifi');
 
       const payload = {
-        target_host_id: selectedHost ? Number(selectedHost) : null,
+        target_host_ids: selectedHostIds,
         enabled_isps: isps,
         auto_interval_hours: Number(document.getElementById('cleanip-interval-input').value) || 3,
         limit_per_isp: Number(document.getElementById('cleanip-limit-input').value) || 2,
@@ -204,7 +236,7 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          alert('✅ تنظیمات با موفقیت ذخیره شد.');
+          alert('✅ تنظیمات با موفقیت ذخیره شد. (' + selectedHostIds.length + ' هاست انتخاب شد)');
         } else {
           const err = await res.json();
           alert('خطا در ذخیره: ' + (err.detail || 'مشکلی پیش آمد'));
