@@ -1,13 +1,191 @@
 /**
  * PasarGuard Auto Clean IP - Web UI Dashboard Extension
- * Elegant Tabbed Interface with 100% theme compatibility, smart lifecycle, and In-Panel Auto-Update.
+ * Version 1.4.0
+ * Centered tabbed dialog with isolated pure CSS, smooth scrolling, and 1-click in-panel updater.
  */
 (() => {
   'use strict';
 
   const TAB_ID = 'pg-cleanip-nav-button';
   const MODAL_ID = 'pg-cleanip-modal-overlay';
-  const VERSION = '1.3.0';
+  const STYLES_ID = 'pg-cleanip-injected-styles';
+  const VERSION = '1.4.0';
+
+  // Inject Self-Contained Isolated CSS (Zero Tailwind dependency)
+  function injectStyles() {
+    if (document.getElementById(STYLES_ID)) return;
+    const style = document.createElement('style');
+    style.id = STYLES_ID;
+    style.textContent = `
+      .pg-cleanip-overlay {
+        position: fixed !important;
+        inset: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        background: rgba(0, 0, 0, 0.72) !important;
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 16px !important;
+        box-sizing: border-box !important;
+      }
+      .pg-cleanip-card {
+        width: 95% !important;
+        max-width: 580px !important;
+        height: 580px !important;
+        max-height: 85vh !important;
+        background: #18181b !important;
+        color: #f4f4f5 !important;
+        border: 1px solid #27272a !important;
+        border-radius: 16px !important;
+        box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        direction: rtl !important;
+        font-family: inherit !important;
+        position: relative !important;
+      }
+      html:not(.dark) .pg-cleanip-card {
+        background: #ffffff !important;
+        color: #18181b !important;
+        border: 1px solid #e4e4e7 !important;
+        box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.2) !important;
+      }
+      .pg-cleanip-header {
+        flex-shrink: 0 !important;
+        padding: 14px 18px !important;
+        border-bottom: 1px solid #27272a !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        background: inherit !important;
+      }
+      html:not(.dark) .pg-cleanip-header {
+        border-bottom: 1px solid #f4f4f5 !important;
+      }
+      .pg-cleanip-tabs-bar {
+        flex-shrink: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        padding: 6px 14px !important;
+        background: rgba(39, 39, 42, 0.5) !important;
+        border-bottom: 1px solid #27272a !important;
+      }
+      html:not(.dark) .pg-cleanip-tabs-bar {
+        background: #f4f4f5 !important;
+        border-bottom: 1px solid #e4e4e7 !important;
+      }
+      .pg-cleanip-tab-btn {
+        flex: 1 !important;
+        padding: 8px 10px !important;
+        border-radius: 8px !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        border: none !important;
+        background: transparent !important;
+        color: #a1a1aa !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        transition: all 0.15s ease !important;
+      }
+      .pg-cleanip-tab-btn:hover {
+        color: #f4f4f5 !important;
+      }
+      html:not(.dark) .pg-cleanip-tab-btn:hover {
+        color: #18181b !important;
+      }
+      .pg-cleanip-tab-btn.active {
+        background: #18181b !important;
+        color: #10b981 !important;
+        font-weight: 700 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+      }
+      html:not(.dark) .pg-cleanip-tab-btn.active {
+        background: #ffffff !important;
+        color: #059669 !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+      }
+      .pg-cleanip-body {
+        flex: 1 1 0% !important;
+        overflow-y: auto !important;
+        padding: 14px 18px !important;
+        min-height: 0 !important;
+        box-sizing: border-box !important;
+      }
+      .pg-cleanip-footer {
+        flex-shrink: 0 !important;
+        padding: 12px 18px !important;
+        border-top: 1px solid #27272a !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        background: inherit !important;
+      }
+      html:not(.dark) .pg-cleanip-footer {
+        border-top: 1px solid #f4f4f5 !important;
+      }
+      .pg-cleanip-body::-webkit-scrollbar {
+        width: 6px !important;
+      }
+      .pg-cleanip-body::-webkit-scrollbar-track {
+        background: transparent !important;
+      }
+      .pg-cleanip-body::-webkit-scrollbar-thumb {
+        background: #3f3f46 !important;
+        border-radius: 9999px !important;
+      }
+      html:not(.dark) .pg-cleanip-body::-webkit-scrollbar-thumb {
+        background: #d4d4d8 !important;
+      }
+      .pg-cleanip-sticky-bar {
+        position: sticky !important;
+        top: -14px !important;
+        z-index: 10 !important;
+        background: #18181b !important;
+        padding: 6px 0 10px 0 !important;
+        margin-bottom: 8px !important;
+        border-bottom: 1px solid #27272a !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
+      }
+      html:not(.dark) .pg-cleanip-sticky-bar {
+        background: #ffffff !important;
+        border-bottom: 1px solid #e4e4e7 !important;
+      }
+      .pg-cleanip-host-row {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        padding: 9px 12px !important;
+        border-radius: 9px !important;
+        border: 1px solid #27272a !important;
+        margin-bottom: 6px !important;
+        cursor: pointer !important;
+        transition: all 0.15s ease !important;
+        background: rgba(255, 255, 255, 0.02) !important;
+      }
+      html:not(.dark) .pg-cleanip-host-row {
+        border-color: #f4f4f5 !important;
+        background: rgba(0, 0, 0, 0.01) !important;
+      }
+      .pg-cleanip-host-row:hover {
+        background: rgba(16, 185, 129, 0.08) !important;
+        border-color: rgba(16, 185, 129, 0.35) !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   function getAuthHeaders() {
     const token = localStorage.getItem('token') || '';
@@ -19,16 +197,36 @@
   }
 
   function injectNavTab() {
+    injectStyles();
+
     // 1. Floating pill button
     if (!document.getElementById('pg-cleanip-floating-pill')) {
       const floatBtn = document.createElement('button');
       floatBtn.id = 'pg-cleanip-floating-pill';
       floatBtn.type = 'button';
-      floatBtn.className = 'fixed bottom-5 right-5 z-[100] inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-full text-emerald-800 dark:text-emerald-200 bg-emerald-500/15 dark:bg-emerald-950/90 border border-emerald-500/40 hover:border-emerald-500/70 hover:bg-emerald-500/25 transition-all shadow-xl backdrop-blur-md cursor-pointer animate-in fade-in duration-300';
+      floatBtn.style.cssText = `
+        position: fixed !important;
+        bottom: 22px !important;
+        right: 22px !important;
+        z-index: 9999 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+        padding: 8px 16px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        border-radius: 9999px !important;
+        color: #10b981 !important;
+        background: rgba(24, 24, 27, 0.92) !important;
+        border: 1px solid rgba(16, 185, 129, 0.4) !important;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4) !important;
+        backdrop-filter: blur(8px) !important;
+        cursor: pointer !important;
+      `;
       floatBtn.innerHTML = `
-        <span class="text-sm">🛡️</span>
-        <span class="font-semibold tracking-wide">Clean IP</span>
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span style="font-size:14px;">🛡️</span>
+        <span>Clean IP</span>
+        <span style="width:7px; height:7px; border-radius:50%; background:#10b981; display:inline-block;"></span>
       `;
       floatBtn.onclick = (e) => {
         e.preventDefault();
@@ -48,12 +246,12 @@
       if (menuList) {
         const li = document.createElement('li');
         li.id = TAB_ID;
-        li.className = 'px-2 py-0.5';
+        li.style.cssText = 'padding: 2px 8px !important; list-style: none !important;';
         li.innerHTML = `
-          <button type="button" class="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium rounded-lg text-emerald-700 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/40 border border-emerald-200/50 dark:border-emerald-800/40 transition-colors">
-            <span class="text-sm">🛡️</span>
+          <button type="button" style="width:100%; display:flex; align-items:center; gap:10px; padding:8px 12px; font-size:12px; font-weight:500; border-radius:8px; color:#10b981; background:rgba(16, 185, 129, 0.08); border:1px solid rgba(16, 185, 129, 0.2); cursor:pointer;">
+            <span style="font-size:14px;">🛡️</span>
             <span>Clean IP Auto-Pilot</span>
-            <span class="ms-auto w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span style="margin-right:auto; width:6px; height:6px; border-radius:50%; background:#10b981;"></span>
           </button>
         `;
         li.onclick = (e) => {
@@ -74,15 +272,16 @@
 
   async function openDashboardModal() {
     closeModal();
+    injectStyles();
 
-    const modal = document.createElement('div');
-    modal.id = MODAL_ID;
-    modal.className = 'fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200';
-    document.body.appendChild(modal);
+    const overlay = document.createElement('div');
+    overlay.id = MODAL_ID;
+    overlay.className = 'pg-cleanip-overlay';
+    document.body.appendChild(overlay);
 
-    // 1. Close when clicking backdrop outside the dialog
-    modal.onclick = (e) => {
-      if (e.target === modal) {
+    // 1. Close when clicking background outside dialog card
+    overlay.onclick = (e) => {
+      if (e.target === overlay) {
         closeModal();
       }
     };
@@ -96,24 +295,25 @@
     };
     window.addEventListener('keydown', onKey);
 
-    // 3. Close on route change
-    const initialPath = window.location.pathname;
+    // 3. Auto-close when user navigates to another page
+    const initialUrl = window.location.href;
     const routeCheck = setInterval(() => {
       if (!document.getElementById(MODAL_ID)) {
         clearInterval(routeCheck);
         return;
       }
-      if (window.location.pathname !== initialPath) {
+      if (window.location.href !== initialUrl) {
         closeModal();
         clearInterval(routeCheck);
       }
-    }, 250);
+    }, 200);
 
-    // Initial Loading State
-    modal.innerHTML = `
-      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-lg p-8 text-center shadow-2xl text-zinc-700 dark:text-zinc-200" dir="rtl">
-        <div class="inline-block w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p class="font-medium text-sm">در حال بارگذاری اطلاعات Clean IP...</p>
+    // Loading State
+    overlay.innerHTML = `
+      <div class="pg-cleanip-card" style="height:auto; padding:40px; text-align:center;">
+        <div style="width:32px; height:32px; border:3px solid #10b981; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 16px;"></div>
+        <p style="font-size:13px; font-weight:500;">در حال بارگذاری اطلاعات Clean IP...</p>
+        <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
       </div>
     `;
 
@@ -124,274 +324,277 @@
         fetch('/api/cleanip/check-update', { headers: getAuthHeaders() }).then(r => r.json()).catch(() => ({}))
       ]);
 
-      renderModalContent(modal, statusRes, hostsRes, updateRes);
+      renderModalContent(overlay, statusRes, hostsRes, updateRes);
     } catch (err) {
-      modal.innerHTML = `
-        <div class="bg-white dark:bg-zinc-900 border border-red-200 dark:border-red-900 rounded-2xl w-full max-w-md p-6 text-center shadow-xl" dir="rtl">
-          <p class="text-red-600 dark:text-red-400 font-semibold mb-3">خطا در برقراری ارتباط با افزونه Clean IP</p>
-          <p class="text-xs text-zinc-500 mb-4">${err.message || 'لطفاً وضعیت سرویس را بررسی کنید.'}</p>
-          <button id="close-err-btn" class="px-4 py-2 bg-zinc-200 dark:bg-zinc-800 rounded-xl text-sm font-medium">بستن</button>
+      overlay.innerHTML = `
+        <div class="pg-cleanip-card" style="height:auto; max-width:400px; padding:24px; text-align:center;">
+          <p style="color:#ef4444; font-weight:600; font-size:14px; margin-bottom:8px;">خطا در ارتباط با سرور</p>
+          <p style="color:#71717a; font-size:12px; margin-bottom:16px;">${err.message || 'لطفاً وضعیت سرویس را بررسی کنید.'}</p>
+          <button id="close-err-btn" style="padding:8px 16px; border-radius:8px; background:#27272a; color:#fff; border:none; cursor:pointer;">بستن</button>
         </div>
       `;
       document.getElementById('close-err-btn').onclick = closeModal;
     }
   }
 
-  function renderModalContent(modal, statusData, hostsList, updateData) {
+  function renderModalContent(overlay, statusData, hostsList, updateData) {
     const settings = statusData?.settings || {};
     const latest = statusData?.latest_update;
     const targetHostIds = Array.isArray(settings.target_host_ids) ? settings.target_host_ids : (settings.target_host_id ? [settings.target_host_id] : []);
     const hasUpdate = updateData?.has_update;
 
-    modal.innerHTML = `
-      <div class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl w-full max-w-xl h-[570px] max-h-[92vh] p-5 shadow-2xl flex flex-col text-right transition-all animate-in zoom-in-95 duration-150" dir="rtl">
+    overlay.innerHTML = `
+      <div class="pg-cleanip-card">
         
-        <!-- Header -->
-        <div class="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
-          <button id="cleanip-close-x" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-100 text-lg font-bold p-1 rounded-lg transition-colors cursor-pointer">✕</button>
-          <div class="flex items-center gap-2.5">
+        <!-- Header (Fixed Top) -->
+        <div class="pg-cleanip-header">
+          <button id="cleanip-close-x" style="background:none; border:none; color:#a1a1aa; font-size:18px; font-weight:bold; cursor:pointer; padding:4px 8px; border-radius:6px;">✕</button>
+          <div style="display:flex; align-items:center; gap:10px;">
             <div>
-              <div class="flex items-center gap-2">
-                <h3 class="font-bold text-sm text-zinc-900 dark:text-zinc-100">Clean IP Auto-Pilot</h3>
-                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-medium">v${VERSION}</span>
-                ${hasUpdate ? '<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold animate-pulse">آپدیت جدید!</span>' : ''}
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-weight:700; font-size:14px;">مدیریت Clean IP</span>
+                <span style="font-size:10px; padding:2px 8px; border-radius:9999px; background:rgba(16,185,129,0.15); color:#10b981; font-weight:600;">v${VERSION}</span>
+                ${hasUpdate ? '<span style="font-size:10px; padding:2px 8px; border-radius:9999px; background:#f59e0b; color:#000; font-weight:700;">آپدیت جدید!</span>' : ''}
               </div>
-              <p class="text-[11px] text-zinc-400">نوسازی خودکار آی‌پی‌های تمیز کلودفلر</p>
+              <p style="font-size:11px; color:#71717a; margin-top:2px;">نوسازی خودکار آی‌پی‌های تمیز کلودفلر</p>
             </div>
-            <div class="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 text-base">🛡️</div>
+            <div style="width:34px; height:34px; border-radius:10px; background:rgba(16,185,129,0.15); display:flex; align-items:center; justify-content:center; font-size:16px;">🛡️</div>
           </div>
         </div>
 
-        <!-- In-Panel Auto-Update Notification Banner -->
+        <!-- In-Panel Auto-Update Banner (if available) -->
         ${hasUpdate ? `
-          <div id="cleanip-update-banner" class="mt-2.5 p-3 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-300 dark:border-amber-700/60 flex items-center justify-between text-xs shrink-0 shadow-sm animate-in fade-in">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="text-lg">🚀</span>
-              <div class="min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-bold text-amber-900 dark:text-amber-200">نسخه جدید موجود است (${updateData.latest_version})</span>
-                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-200/60 dark:bg-amber-900/60 font-mono">فعلی: v${VERSION}</span>
-                </div>
-                <p class="text-[11px] text-zinc-600 dark:text-zinc-300 truncate mt-0.5">${updateData.changelog || 'بهینه‌سازی کارایی و حل باگ‌ها'}</p>
+          <div id="cleanip-update-banner" style="margin:8px 16px 0; padding:10px 14px; border-radius:10px; background:rgba(245, 158, 11, 0.12); border:1px solid rgba(245, 158, 11, 0.35); display:flex; align-items:center; justify-content:space-between; font-size:12px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:16px;">🚀</span>
+              <div>
+                <span style="font-weight:700; color:#f59e0b;">نسخه جدید (${updateData.latest_version}) آماده نصب است!</span>
+                <p style="font-size:11px; color:#a1a1aa; margin-top:2px;">${updateData.changelog || 'بهینه‌سازی کارایی و حل باگ‌ها'}</p>
               </div>
             </div>
-            <button id="cleanip-oneclick-update-btn" type="button" class="py-1.5 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-semibold text-xs shadow-sm transition flex items-center gap-1 cursor-pointer shrink-0 ms-2">
-              <span>آپدیت خودکار</span>
-              <span>⚡</span>
+            <button id="cleanip-oneclick-update-btn" style="padding:6px 12px; border-radius:8px; background:#f59e0b; color:#000; font-weight:700; font-size:11px; border:none; cursor:pointer;">
+              آپدیت فوری ⚡
             </button>
           </div>
         ` : ''}
 
-        <!-- Navigation Tabs Bar -->
-        <div class="flex items-center gap-1 p-1 my-2.5 bg-zinc-100/80 dark:bg-zinc-800/60 rounded-xl text-xs shrink-0 font-medium text-zinc-600 dark:text-zinc-400">
-          <button id="tab-btn-hosts" class="cleanip-tab-btn flex-1 py-1.5 px-3 rounded-lg transition-all text-center flex items-center justify-center gap-1.5 bg-white dark:bg-zinc-900 text-emerald-700 dark:text-emerald-300 shadow-sm font-semibold">
+        <!-- Tabs Bar (Fixed Top) -->
+        <div class="pg-cleanip-tabs-bar">
+          <button id="tab-btn-hosts" class="pg-cleanip-tab-btn active">
             <span>🎯 هاست‌های هدف</span>
-            <span id="cleanip-tab-hosts-count" class="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 dark:bg-emerald-950 font-bold">${targetHostIds.length}</span>
+            <span id="cleanip-tab-hosts-count" style="font-size:10px; padding:1px 6px; border-radius:9999px; background:rgba(16,185,129,0.2); font-weight:700;">${targetHostIds.length}</span>
           </button>
-          <button id="tab-btn-config" class="cleanip-tab-btn flex-1 py-1.5 px-3 rounded-lg transition-all text-center flex items-center justify-center gap-1.5 hover:text-zinc-900 dark:hover:text-zinc-200">
-            <span>⚙️ تنظیمات و اپراتورها</span>
+          <button id="tab-btn-config" class="pg-cleanip-tab-btn">
+            <span>⚙️ تنظیمات اسکن</span>
           </button>
-          <button id="tab-btn-status" class="cleanip-tab-btn flex-1 py-1.5 px-3 rounded-lg transition-all text-center flex items-center justify-center gap-1.5 hover:text-zinc-900 dark:hover:text-zinc-200">
+          <button id="tab-btn-status" class="pg-cleanip-tab-btn">
             <span>📊 وضعیت و آپدیت</span>
-            ${hasUpdate ? '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>' : ''}
+            ${hasUpdate ? '<span style="width:6px; height:6px; border-radius:50%; background:#f59e0b;"></span>' : ''}
           </button>
         </div>
 
-        <!-- Notification Banner -->
-        <div id="cleanip-alert-banner" class="hidden mb-2 shrink-0"></div>
+        <!-- Alert Banner -->
+        <div id="cleanip-alert-banner" style="display:none; margin:8px 16px 0; padding:8px 12px; border-radius:8px; font-size:12px;"></div>
 
-        <!-- Tab 1: Hosts Selection Pane -->
-        <div id="cleanip-pane-hosts" class="cleanip-pane flex-1 flex flex-col min-h-0 space-y-2">
-          <!-- Search & Select All Actions -->
-          <div class="flex items-center justify-between gap-2 shrink-0">
-            <input type="text" id="cleanip-search-input" placeholder="🔍 جستجو در نام هاست یا پورت..." class="flex-1 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50 text-xs focus:outline-none focus:border-emerald-500">
-            <button id="cleanip-select-cdn-btn" type="button" class="text-[11px] px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-800/40 font-medium cursor-pointer hover:bg-emerald-100/60 whitespace-nowrap">
-              ✓ انتخاب همه CDN
-            </button>
-            <button id="cleanip-deselect-all-btn" type="button" class="text-[11px] px-2 py-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer whitespace-nowrap">
-              ✕ لغو
-            </button>
-          </div>
+        <!-- Main Body: Single Unified Scroll Container -->
+        <div class="pg-cleanip-body">
+          
+          <!-- TAB 1: HOSTS -->
+          <div id="cleanip-pane-hosts">
+            <!-- Sticky Filter Toolbar -->
+            <div class="pg-cleanip-sticky-bar">
+              <input type="text" id="cleanip-search-input" placeholder="🔍 جستجو در نام، پورت، تگ..." style="flex:1; min-width:0; padding:7px 12px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:12px; outline:none;">
+              <button id="cleanip-select-cdn-btn" type="button" style="padding:6px 10px; border-radius:8px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:11px; font-weight:600; cursor:pointer; white-space:nowrap;">
+                ✓ انتخاب همه CDN
+              </button>
+              <button id="cleanip-deselect-all-btn" type="button" style="padding:6px 8px; border-radius:8px; background:none; border:none; color:#71717a; font-size:11px; cursor:pointer; white-space:nowrap;">
+                ✕ لغو همه
+              </button>
+            </div>
 
-          <!-- Hosts Scrollable List -->
-          <div id="cleanip-hosts-container" class="flex-1 overflow-y-auto border border-zinc-200 dark:border-zinc-800 rounded-xl p-1.5 bg-zinc-50/50 dark:bg-zinc-800/30 divide-y divide-zinc-100 dark:divide-zinc-800/60 space-y-0.5">
-            ${hostsList.length === 0 ? '<p class="text-xs text-zinc-400 text-center py-8">هیچ هاستی یافت نشد.</p>' : ''}
-            ${hostsList.map(h => {
-              const cfPorts = [80, 443, 2052, 2053, 2082, 2083, 2086, 2087, 2095, 2096, 8080, 8443, 8880];
-              const tagPortMatch = (h.inbound_tag || '').match(/\b(20[589][0-9]|8443|8080|443|80|8880|\d{2,5})\b/);
-              const effectivePort = h.port || (tagPortMatch ? Number(tagPortMatch[0]) : null);
-              const isCfPort = effectivePort ? cfPorts.includes(effectivePort) : false;
-              
-              const isDummyStatus = h.inbound_tag && (h.inbound_tag.toLowerCase().includes('status') || h.inbound_tag.toLowerCase().includes('wireguard') || h.inbound_tag.toLowerCase().includes('wg_'));
-              const isReality = (h.inbound_tag && h.inbound_tag.toLowerCase().includes('reality')) || (h.remark && h.remark.toLowerCase().includes('-ry'));
-              const isTunnel = h.inbound_tag && (h.inbound_tag.toLowerCase().includes('tun') || h.inbound_tag.toLowerCase().includes('tcp-tun'));
-              
-              const isCdn = !isDummyStatus && !isReality && !isTunnel && (
-                isCfPort ||
-                (h.remark && (h.remark.includes('☁') || h.remark.toLowerCase().includes('cdn') || h.remark.toLowerCase().includes('cleanip'))) || 
-                (h.inbound_tag && (h.inbound_tag.toLowerCase().includes('xhttp') || h.inbound_tag.toLowerCase().includes('cloud') || h.inbound_tag.toLowerCase().includes('cf')))
-              );
-              
-              const isChecked = targetHostIds.includes(h.id);
-              const searchText = `${h.remark || ''} ${h.inbound_tag || ''} ${effectivePort || ''}`.toLowerCase();
-              
-              return `
-                <label class="cleanip-host-row flex items-center justify-between p-2 rounded-lg hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 cursor-pointer transition text-xs ${isReality || isDummyStatus ? 'opacity-50' : ''}" data-is-cdn="${isCdn ? '1' : '0'}" data-search="${searchText}">
-                  <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                    <input type="checkbox" class="cleanip-host-cb w-4 h-4 rounded text-emerald-600 accent-emerald-600 cursor-pointer shrink-0" value="${h.id}" ${isChecked ? 'checked' : ''}>
-                    <div class="flex flex-col min-w-0">
-                      <span class="font-medium text-xs text-zinc-900 dark:text-zinc-100 truncate" dir="auto" style="unicode-bidi: plaintext;">
-                        ${h.remark || 'Host #' + h.id}
-                      </span>
-                      <span class="text-[10px] text-zinc-400 font-mono">${h.inbound_tag || 'Port ' + (effectivePort || 'Auto')}</span>
+            <!-- Hosts List -->
+            <div id="cleanip-hosts-list">
+              ${hostsList.length === 0 ? '<p style="font-size:12px; color:#71717a; text-align:center; padding:30px 0;">هیچ هاستی یافت نشد.</p>' : ''}
+              ${hostsList.map(h => {
+                const cfPorts = [80, 443, 2052, 2053, 2082, 2083, 2086, 2087, 2095, 2096, 8080, 8443, 8880];
+                const tagPortMatch = (h.inbound_tag || '').match(/\b(20[589][0-9]|8443|8080|443|80|8880|\d{2,5})\b/);
+                const effectivePort = h.port || (tagPortMatch ? Number(tagPortMatch[0]) : null);
+                const isCfPort = effectivePort ? cfPorts.includes(effectivePort) : false;
+                
+                const isDummyStatus = h.inbound_tag && (h.inbound_tag.toLowerCase().includes('status') || h.inbound_tag.toLowerCase().includes('wireguard') || h.inbound_tag.toLowerCase().includes('wg_'));
+                const isReality = (h.inbound_tag && h.inbound_tag.toLowerCase().includes('reality')) || (h.remark && h.remark.toLowerCase().includes('-ry'));
+                const isTunnel = h.inbound_tag && (h.inbound_tag.toLowerCase().includes('tun') || h.inbound_tag.toLowerCase().includes('tcp-tun'));
+                
+                const isCdn = !isDummyStatus && !isReality && !isTunnel && (
+                  isCfPort ||
+                  (h.remark && (h.remark.includes('☁') || h.remark.toLowerCase().includes('cdn') || h.remark.toLowerCase().includes('cleanip'))) || 
+                  (h.inbound_tag && (h.inbound_tag.toLowerCase().includes('xhttp') || h.inbound_tag.toLowerCase().includes('cloud') || h.inbound_tag.toLowerCase().includes('cf')))
+                );
+                
+                const isChecked = targetHostIds.includes(h.id);
+                const searchText = `${h.remark || ''} ${h.inbound_tag || ''} ${effectivePort || ''}`.toLowerCase();
+                
+                return `
+                  <label class="pg-cleanip-host-row" data-is-cdn="${isCdn ? '1' : '0'}" data-search="${searchText}" style="${isReality || isDummyStatus ? 'opacity:0.55;' : ''}">
+                    <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+                      <input type="checkbox" class="cleanip-host-cb" style="width:16px; height:16px; accent-color:#10b981; cursor:pointer; flex-shrink:0;" value="${h.id}" ${isChecked ? 'checked' : ''}>
+                      <div style="display:flex; flex-direction:column; min-width:0;">
+                        <span style="font-weight:600; font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; unicode-bidi:plaintext;" dir="auto">
+                          ${h.remark || 'Host #' + h.id}
+                        </span>
+                        <span style="font-size:10px; color:#71717a; font-family:monospace; margin-top:2px;">${h.inbound_tag || 'Port ' + (effectivePort || 'Auto')}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div class="shrink-0 ms-2">
-                    ${isCdn ? `
-                      <span class="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-mono font-medium border border-emerald-200 dark:border-emerald-800/60">
-                        ☁️ CDN ${effectivePort ? `(پورت ${effectivePort})` : ''}
-                      </span>
-                    ` : (isReality ? `
-                      <span class="text-[10px] px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50">
-                        ⚡ Reality
-                      </span>
-                    ` : `
-                      <span class="text-[10px] px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-400">
-                        مستقیم / سایر
-                      </span>
-                    `)}
-                  </div>
+                    <div style="flex-shrink:0; margin-right:8px;">
+                      ${isCdn ? `
+                        <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; font-family:monospace; font-weight:600; border:1px solid rgba(16,185,129,0.3);">
+                          ☁️ CDN ${effectivePort ? `(پورت ${effectivePort})` : ''}
+                        </span>
+                      ` : (isReality ? `
+                        <span style="font-size:10px; padding:2px 8px; border-radius:6px; background:rgba(245,158,11,0.12); color:#f59e0b; border:1px solid rgba(245,158,11,0.25);">
+                          ⚡ Reality
+                        </span>
+                      ` : `
+                        <span style="font-size:10px; padding:2px 8px; border-radius:6px; background:rgba(255,255,255,0.06); color:#71717a;">
+                          مستقیم / سایر
+                        </span>
+                      `)}
+                    </div>
+                  </label>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <!-- TAB 2: CONFIG -->
+          <div id="cleanip-pane-config" style="display:none; flex-direction:column; gap:14px; font-size:12px;">
+            <div style="padding:14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:10px;">
+              <span style="font-weight:600;">اپراتورهای هدف جهت دریافت آی‌پی‌های تمیز:</span>
+              <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px;">
+                <label style="display:flex; align-items:center; justify-content:space-between; padding:9px 10px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.04); cursor:pointer;">
+                  <span>همراه اول</span>
+                  <input type="checkbox" id="isp-mci" value="mci" ${settings.enabled_isps?.includes('mci') ? 'checked' : ''} style="width:16px; height:16px; accent-color:#10b981;">
                 </label>
-              `;
-            }).join('')}
-          </div>
-        </div>
-
-        <!-- Tab 2: Settings & Operators Pane -->
-        <div id="cleanip-pane-config" class="cleanip-pane hidden flex-1 overflow-y-auto space-y-3.5 pr-1 pl-1 text-xs">
-          <!-- ISP selection -->
-          <div class="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 space-y-2">
-            <span class="font-semibold text-zinc-800 dark:text-zinc-200 block">اپراتورهای فعال:</span>
-            <div class="grid grid-cols-3 gap-2">
-              <label class="flex items-center justify-between p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 cursor-pointer">
-                <span>همراه اول (MCI)</span>
-                <input type="checkbox" id="isp-mci" value="mci" ${settings.enabled_isps?.includes('mci') ? 'checked' : ''} class="w-4 h-4 rounded accent-emerald-600">
-              </label>
-              <label class="flex items-center justify-between p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 cursor-pointer">
-                <span>ایرانسل (MTN)</span>
-                <input type="checkbox" id="isp-mtn" value="mtn" ${settings.enabled_isps?.includes('mtn') ? 'checked' : ''} class="w-4 h-4 rounded accent-emerald-600">
-              </label>
-              <label class="flex items-center justify-between p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 cursor-pointer">
-                <span>مخابرات / Wifi</span>
-                <input type="checkbox" id="isp-wifi" value="wifi" ${settings.enabled_isps?.includes('wifi') ? 'checked' : ''} class="w-4 h-4 rounded accent-emerald-600">
-              </label>
+                <label style="display:flex; align-items:center; justify-content:space-between; padding:9px 10px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.04); cursor:pointer;">
+                  <span>ایرانسل</span>
+                  <input type="checkbox" id="isp-mtn" value="mtn" ${settings.enabled_isps?.includes('mtn') ? 'checked' : ''} style="width:16px; height:16px; accent-color:#10b981;">
+                </label>
+                <label style="display:flex; align-items:center; justify-content:space-between; padding:9px 10px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.04); cursor:pointer;">
+                  <span>مخابرات / Wifi</span>
+                  <input type="checkbox" id="isp-wifi" value="wifi" ${settings.enabled_isps?.includes('wifi') ? 'checked' : ''} style="width:16px; height:16px; accent-color:#10b981;">
+                </label>
+              </div>
             </div>
-          </div>
 
-          <!-- Interval and Limits -->
-          <div class="grid grid-cols-2 gap-3">
-            <div class="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 space-y-1.5">
-              <label class="font-semibold text-zinc-800 dark:text-zinc-200 block">بازه بروزرسانی خودکار:</label>
-              <select id="cleanip-interval-select" class="w-full p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs">
-                <option value="1" ${settings.auto_interval_hours === 1 ? 'selected' : ''}>هر ۱ ساعت</option>
-                <option value="2" ${settings.auto_interval_hours === 2 ? 'selected' : ''}>هر ۲ ساعت</option>
-                <option value="3" ${!settings.auto_interval_hours || settings.auto_interval_hours === 3 ? 'selected' : ''}>هر ۳ ساعت (پیشنهادی)</option>
-                <option value="6" ${settings.auto_interval_hours === 6 ? 'selected' : ''}>هر ۶ ساعت</option>
-                <option value="12" ${settings.auto_interval_hours === 12 ? 'selected' : ''}>هر ۱۲ ساعت</option>
-              </select>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+              <div style="padding:12px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">بازه بروزرسانی خودکار:</label>
+                <select id="cleanip-interval-select" style="width:100%; padding:8px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:12px; outline:none;">
+                  <option value="1" ${settings.auto_interval_hours === 1 ? 'selected' : ''}>هر ۱ ساعت</option>
+                  <option value="2" ${settings.auto_interval_hours === 2 ? 'selected' : ''}>هر ۲ ساعت</option>
+                  <option value="3" ${!settings.auto_interval_hours || settings.auto_interval_hours === 3 ? 'selected' : ''}>هر ۳ ساعت (پیشنهادی)</option>
+                  <option value="6" ${settings.auto_interval_hours === 6 ? 'selected' : ''}>هر ۶ ساعت</option>
+                  <option value="12" ${settings.auto_interval_hours === 12 ? 'selected' : ''}>هر ۱۲ ساعت</option>
+                </select>
+              </div>
+              <div style="padding:12px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:6px;">
+                <label style="font-weight:600;">تعداد IP برای هر اپراتور:</label>
+                <input type="number" id="cleanip-limit-input" min="1" max="5" value="${settings.limit_per_isp || 2}" style="width:100%; padding:8px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:12px; box-sizing:border-box; outline:none;">
+              </div>
             </div>
-            <div class="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 space-y-1.5">
-              <label class="font-semibold text-zinc-800 dark:text-zinc-200 block">تعداد IP به ازای هر اپراتور:</label>
-              <input type="number" id="cleanip-limit-input" min="1" max="5" value="${settings.limit_per_isp || 2}" class="w-full p-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs">
+
+            <div style="padding:12px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.1); color:#a1a1aa; font-size:11px; line-height:1.6;">
+              💡 <b>نکته مهم ایمنی:</b> آی‌پی‌های تمیز فقط روی هاست‌هایی اعمال می‌شوند که در تب «هاست‌های هدف» تیک زده‌اید. هاست‌های Reality و Status به صورت خودکار محافظت می‌شوند.
             </div>
           </div>
-        </div>
 
-        <!-- Tab 3: Status & Active Clean IPs Pane -->
-        <div id="cleanip-pane-status" class="cleanip-pane hidden flex-1 overflow-y-auto space-y-3 pr-1 pl-1 text-xs">
-          <!-- Status Banner -->
-          <div class="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/50 dark:bg-emerald-950/20 flex items-center justify-between">
-            <div>
-              <span class="font-semibold text-emerald-800 dark:text-emerald-300 block text-xs">موتور اسکن خودکار (Auto-Pilot):</span>
-              <p class="text-[11px] text-zinc-500 mt-0.5">در پشت‌صحنه بر اساس زمان‌بندی آی‌پی‌های تمیز اعمال می‌شوند.</p>
+          <!-- TAB 3: STATUS & UPDATE -->
+          <div id="cleanip-pane-status" style="display:none; flex-direction:column; gap:12px; font-size:12px;">
+            <div style="padding:14px; border-radius:10px; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.08); display:flex; align-items:center; justify-content:space-between;">
+              <div>
+                <span style="font-weight:700; color:#10b981; display:block;">موتور هوشمند Clean IP:</span>
+                <p style="font-size:11px; color:#71717a; margin-top:2px;">اسکن و تزریق بدون قطعی و با پینگ زنده در پس‌زمینه در حال کار است.</p>
+              </div>
+              <span style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:9999px; background:rgba(16,185,129,0.2); color:#10b981; font-weight:700; font-size:11px;">
+                <span style="width:6px; height:6px; border-radius:50%; background:#10b981;"></span>
+                فعال
+              </span>
             </div>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-200 font-bold text-[10px]">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              فعال
-            </span>
-          </div>
 
-          <!-- In-Panel Auto Update Card -->
-          <div class="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-semibold text-zinc-800 dark:text-zinc-200">بروزرسانی افزونه:</span>
-              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200">نسخه v${VERSION}</span>
+            <!-- In-Panel Online Auto-Update Card -->
+            <div style="padding:14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-weight:600;">بروزرسانی آنلاین و خودکار:</span>
+                <span style="font-family:monospace; font-size:11px; padding:2px 8px; border-radius:6px; background:rgba(255,255,255,0.08);">نسخه فعلی: v${VERSION}</span>
+              </div>
+              <p style="font-size:11px; color:#71717a;">با یک کلیک بدون نیاز به ورود به SSH سرور، آخرین کدهای افزونه از گیت‌هاب دریافت و جایگزین می‌شوند.</p>
+              <button id="cleanip-manual-update-btn" type="button" style="width:100%; padding:9px; border-radius:8px; background:#27272a; color:#fff; border:1px solid #3f3f46; font-weight:600; font-size:12px; cursor:pointer;">
+                🔄 بررسی و بروزرسانی خودکار افزونه
+              </button>
             </div>
-            <p class="text-[11px] text-zinc-400">امکان آپدیت خودکار آنلاین با یک کلیک بدون نیاز به ورود به سرور یا ترمینال.</p>
-            <button id="cleanip-manual-update-btn" type="button" class="w-full py-2 px-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-semibold text-xs transition cursor-pointer flex items-center justify-center gap-2 border border-zinc-200 dark:border-zinc-700">
-              <span>🔄 بررسی و نصب آخرین نسخه از گیت‌هاب</span>
-            </button>
-          </div>
 
-          <!-- Latest active IPs -->
-          <div class="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-semibold text-zinc-800 dark:text-zinc-200">آی‌پی‌های تمیز اعمال‌شده اخیر:</span>
-              <span class="text-[10px] text-zinc-400 font-mono">${latest?.timestamp ? new Date(latest.timestamp).toLocaleTimeString('fa-IR') : 'هنوز تستی انجام نشده'}</span>
-            </div>
-            <div id="cleanip-active-ips-list" class="flex flex-wrap gap-1.5 font-mono text-[11px]">
-              ${(latest?.applied_ips || []).length > 0 ? (latest.applied_ips).map(ip => `
-                <span class="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-mono">
-                  ${ip}
-                </span>
-              `).join('') : '<span class="text-zinc-400">هنوز اسکن جدیدی انجام نشده است.</span>'}
+            <!-- Latest Clean IPs List -->
+            <div style="padding:14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-weight:600;">آی‌پی‌های تمیز اعمال‌شده اخیر:</span>
+                <span style="font-size:10px; color:#71717a; font-family:monospace;">${latest?.timestamp ? new Date(latest.timestamp).toLocaleTimeString('fa-IR') : 'هنوز تستی انجام نشده'}</span>
+              </div>
+              <div id="cleanip-active-ips-list" style="display:flex; flex-wrap:wrap; gap:6px; font-family:monospace; font-size:11px;">
+                ${(latest?.applied_ips || []).length > 0 ? (latest.applied_ips).map(ip => `
+                  <span style="padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);">
+                    ${ip}
+                  </span>
+                `).join('') : '<span style="color:#71717a;">هنوز اسکن جدیدی انجام نشده است.</span>'}
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Sticky Footer Action Buttons -->
-        <div class="flex items-center gap-2.5 pt-3 border-t border-zinc-100 dark:border-zinc-800 shrink-0">
-          <button id="cleanip-trigger-scan" type="button" class="flex-1 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-semibold rounded-xl transition flex items-center justify-center gap-1.5 shadow-md cursor-pointer text-xs whitespace-nowrap">
-            <span>⚡ اسکن و اعمال روی هاست‌ها</span>
+        <!-- Footer Action Buttons (Fixed Bottom) -->
+        <div class="pg-cleanip-footer">
+          <button id="cleanip-trigger-scan" type="button" style="flex:1; padding:10px 14px; border-radius:10px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 4px 12px rgba(16,185,129,0.3);">
+            <span>⚡ اسکن و اعمال فوری</span>
           </button>
-          <button id="cleanip-save-settings" type="button" class="py-2.5 px-4 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 font-medium rounded-xl transition text-xs cursor-pointer whitespace-nowrap border border-zinc-200 dark:border-zinc-700">
-            ذخیره
+          <button id="cleanip-save-settings" type="button" style="padding:10px 16px; border-radius:10px; background:#27272a; color:#f4f4f5; border:1px solid #3f3f46; font-weight:600; font-size:12px; cursor:pointer;">
+            ذخیره تنظیمات
           </button>
-          <button id="cleanip-footer-close" type="button" class="py-2.5 px-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-xs cursor-pointer">
+          <button id="cleanip-footer-close" type="button" style="padding:10px 14px; border-radius:10px; background:none; color:#71717a; border:none; font-size:12px; cursor:pointer;">
             بستن
           </button>
         </div>
       </div>
     `;
 
-    // Close listeners
+    // Close buttons
     document.getElementById('cleanip-close-x').onclick = closeModal;
     document.getElementById('cleanip-footer-close').onclick = closeModal;
 
-    // Tabs switching
-    const tabBtnHosts = document.getElementById('tab-btn-hosts');
-    const tabBtnConfig = document.getElementById('tab-btn-config');
-    const tabBtnStatus = document.getElementById('tab-btn-status');
+    // Tab switching
+    const tabHosts = document.getElementById('tab-btn-hosts');
+    const tabConfig = document.getElementById('tab-btn-config');
+    const tabStatus = document.getElementById('tab-btn-status');
 
     const paneHosts = document.getElementById('cleanip-pane-hosts');
     const paneConfig = document.getElementById('cleanip-pane-config');
     const paneStatus = document.getElementById('cleanip-pane-status');
 
-    function switchTab(activeBtn, activePane) {
-      [tabBtnHosts, tabBtnConfig, tabBtnStatus].forEach(btn => {
-        btn.className = 'cleanip-tab-btn flex-1 py-1.5 px-3 rounded-lg transition-all text-center flex items-center justify-center gap-1.5 hover:text-zinc-900 dark:hover:text-zinc-200';
-      });
-      activeBtn.className = 'cleanip-tab-btn flex-1 py-1.5 px-3 rounded-lg transition-all text-center flex items-center justify-center gap-1.5 bg-white dark:bg-zinc-900 text-emerald-700 dark:text-emerald-300 shadow-sm font-semibold';
+    function switchTab(btnActive, paneActive) {
+      [tabHosts, tabConfig, tabStatus].forEach(b => b.classList.remove('active'));
+      btnActive.classList.add('active');
 
-      [paneHosts, paneConfig, paneStatus].forEach(p => p.classList.add('hidden'));
-      activePane.classList.remove('hidden');
+      paneHosts.style.display = 'none';
+      paneConfig.style.display = 'none';
+      paneStatus.style.display = 'none';
+
+      paneActive.style.display = 'flex';
+      paneActive.style.flexDirection = 'column';
     }
 
-    tabBtnHosts.onclick = () => switchTab(tabBtnHosts, paneHosts);
-    tabBtnConfig.onclick = () => switchTab(tabBtnConfig, paneConfig);
-    tabBtnStatus.onclick = () => switchTab(tabBtnStatus, paneStatus);
+    tabHosts.onclick = () => switchTab(tabHosts, paneHosts);
+    tabConfig.onclick = () => switchTab(tabConfig, paneConfig);
+    tabStatus.onclick = () => switchTab(tabStatus, paneStatus);
 
-    // Update selected count badge helper
+    // Selected count badge
     function updateSelectedCount() {
       const count = document.querySelectorAll('.cleanip-host-cb:checked').length;
       const countBadge = document.getElementById('cleanip-tab-hosts-count');
@@ -399,26 +602,25 @@
     }
     updateSelectedCount();
 
-    // Host checkbox listeners
     document.querySelectorAll('.cleanip-host-cb').forEach(cb => {
       cb.addEventListener('change', updateSelectedCount);
     });
 
-    // Quick Search filter
+    // Quick Search
     const searchInput = document.getElementById('cleanip-search-input');
     if (searchInput) {
       searchInput.oninput = (e) => {
         const query = e.target.value.trim().toLowerCase();
-        document.querySelectorAll('.cleanip-host-row').forEach(row => {
+        document.querySelectorAll('.pg-cleanip-host-row').forEach(row => {
           const text = row.getAttribute('data-search') || '';
-          row.style.display = text.includes(query) ? '' : 'none';
+          row.style.display = text.includes(query) ? 'flex' : 'none';
         });
       };
     }
 
     // Select all CDN button
     document.getElementById('cleanip-select-cdn-btn').onclick = () => {
-      document.querySelectorAll('#cleanip-hosts-container label').forEach(lbl => {
+      document.querySelectorAll('#cleanip-hosts-list label').forEach(lbl => {
         const cb = lbl.querySelector('.cleanip-host-cb');
         if (lbl.getAttribute('data-is-cdn') === '1' && cb) {
           cb.checked = true;
@@ -456,17 +658,25 @@
     function showBanner(type, message) {
       const banner = document.getElementById('cleanip-alert-banner');
       if (!banner) return;
-      banner.className = `p-2.5 rounded-xl text-xs font-medium ${type === 'error' ? 'bg-red-50 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900' : 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800'}`;
+      banner.style.display = 'block';
+      if (type === 'error') {
+        banner.style.background = 'rgba(239, 68, 68, 0.15)';
+        banner.style.color = '#ef4444';
+        banner.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+      } else {
+        banner.style.background = 'rgba(16, 185, 129, 0.15)';
+        banner.style.color = '#10b981';
+        banner.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+      }
       banner.innerHTML = message;
-      banner.classList.remove('hidden');
     }
 
-    // In-Panel One-Click Auto-Updater handler
+    // In-Panel One-Click Auto-Updater
     const runSelfUpdate = async (btn) => {
       btn.disabled = true;
       const originalHtml = btn.innerHTML;
-      btn.innerHTML = `<span class="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> در حال دانلود و اعمال خودکار...`;
-      showBanner('success', '⏳ در حال دریافت آخرین فایل‌ها از گیت‌هاب و جایگزینی خودکار...');
+      btn.innerHTML = `در حال دریافت و نصب...`;
+      showBanner('success', '⏳ در حال دریافت فایل‌های آپدیت و جایگزینی در پنل...');
 
       try {
         const res = await fetch('/api/cleanip/self-update', {
@@ -476,7 +686,7 @@
         const data = await res.json();
 
         if (res.ok) {
-          showBanner('success', `🎉 ${data.message} صفحه در ۲ ثانیه آینده خودکار رفرش می‌شود...`);
+          showBanner('success', `🎉 ${data.message} صفحه در ۲ ثانیه آینده خودکار ریفرش می‌شود...`);
           setTimeout(() => location.reload(), 2000);
         } else {
           showBanner('error', `❌ خطا در بروزرسانی: ${data.detail || 'ناموفق بود'}`);
@@ -484,7 +694,7 @@
           btn.disabled = false;
         }
       } catch (err) {
-        showBanner('error', `خطای شبکه در بروزرسانی: ${err.message}`);
+        showBanner('error', `خطای شبکه: ${err.message}`);
         btn.innerHTML = originalHtml;
         btn.disabled = false;
       }
@@ -513,13 +723,13 @@
         if (res.ok) {
           showBanner('success', `✅ تنظیمات ذخیره شد. (${payload.target_host_ids.length} هاست هدف فعال)`);
         } else {
-          showBanner('error', `❌ خطا در ذخیره: ${data.detail || 'نامشخص'}`);
+          showBanner('error', `❌ خطا: ${data.detail || 'نامشخص'}`);
         }
       } catch (err) {
         showBanner('error', `خطای شبکه: ${err.message}`);
       } finally {
         saveBtn.disabled = false;
-        saveBtn.innerText = 'ذخیره';
+        saveBtn.innerText = 'ذخیره تنظیمات';
       }
     };
 
@@ -528,14 +738,14 @@
       const payload = getFormPayload();
       
       if (payload.target_host_ids.length === 0) {
-        switchTab(tabBtnHosts, paneHosts);
-        showBanner('error', '⚠️ لطفاً حداقل یک هاست را از تب «هاست‌ها» تیک بزنید.');
+        switchTab(tabHosts, paneHosts);
+        showBanner('error', '⚠️ لطفاً حداقل یک هاست را از تب «هاست‌های هدف» تیک بزنید.');
         return;
       }
 
       const btn = document.getElementById('cleanip-trigger-scan');
       const originalText = btn.innerHTML;
-      btn.innerHTML = `<span class="inline-block w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span> در حال اسکن پینگ و اعمال...`;
+      btn.innerHTML = `در حال تست پینگ و اعمال...`;
       btn.disabled = true;
 
       try {
@@ -551,9 +761,9 @@
           const updatedNames = data.updated_hosts || [];
           
           showBanner('success', `
-            <div class="space-y-1">
-              <p class="font-bold">✅ ${data.message}</p>
-              <p class="text-[11px]">هاست‌های آپدیت‌شده: ${updatedNames.join(' ، ')}</p>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <p style="font-weight:700;">✅ ${data.message}</p>
+              <p style="font-size:11px;">هاست‌های آپدیت‌شده: ${updatedNames.join(' ، ')}</p>
             </div>
           `);
 
@@ -561,7 +771,7 @@
           const activeIpsList = document.getElementById('cleanip-active-ips-list');
           if (activeIpsList && appliedIps.length > 0) {
             activeIpsList.innerHTML = appliedIps.map(ip => `
-              <span class="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-mono">
+              <span style="padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);">
                 ${ip}
               </span>
             `).join('');

@@ -191,6 +191,10 @@ async def self_update(
                 html_content = html_content.replace('</body>', f'  {tag}\n</body>', 1)
             container_index.write_text(html_content, encoding="utf-8")
 
+        # Save remote version info locally
+        (DATA_DIR / "version.json").write_text(ver_text, encoding="utf-8")
+        updated_files.append("version.json")
+
         return {
             "success": True,
             "message": f"افزونه Clean IP با موفقیت به نسخه {new_version} بروزرسانی شد.",
