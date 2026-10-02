@@ -2,7 +2,7 @@ const { chromium } = require('C:/Users/ZerO/AppData/Roaming/npm/node_modules/@pl
 const path = require('path');
 
 (async () => {
-  console.log('🚀 Starting Edge Playwright UI Verification for v1.5.0...');
+  console.log('🚀 Starting Edge Playwright UI Verification for v1.6.0...');
 
   const browser = await chromium.launch({
     channel: 'msedge',
@@ -42,10 +42,21 @@ const path = require('path');
   console.log(`✅ Tab 2 Test: Custom IPs found: "${customIpVal}"`);
   await page.screenshot({ path: path.resolve(__dirname, 'test_tab2.png') });
 
-  // 3. Test Tab 3 (Status & Live Probe)
-  console.log('📊 Switching to Tab 3 (Status & Live Probe)...');
+  // 3. Test Tab 3 (Infrastructure Diagnostics & Live Probe)
+  console.log('📊 Switching to Tab 3 (Diagnostics & Live Probe)...');
   await page.click('#tab-btn-status');
   await page.waitForTimeout(300);
+
+  // Trigger End-to-End Infrastructure Diagnostic
+  console.log('🩺 Clicking run infrastructure diagnostic button...');
+  await page.click('#cleanip-run-diag-btn');
+  await page.waitForTimeout(600);
+  const diagResultVisible = await page.$eval('#cleanip-diag-result-container', el => el.style.display !== 'none');
+  const diagText = await page.$eval('#cleanip-diag-result-container', el => el.innerText);
+  console.log(`✅ Tab 3 Test: DiagResultVisible=${diagResultVisible}, contains "زیرساخت": ${diagText.includes('زیرساخت')}`);
+  if (!diagResultVisible || !diagText.includes('زیرساخت')) {
+    throw new Error('FAIL: Diagnostic result not displayed properly!');
+  }
 
   // Trigger Live In-Browser Probe
   console.log('🔍 Clicking live in-browser probe button...');
@@ -68,6 +79,6 @@ const path = require('path');
   }
   await page.screenshot({ path: path.resolve(__dirname, 'test_closed.png') });
 
-  console.log('🎉 ALL v1.5.0 UI & PROBE TESTS PASSED PERFECTLY!');
+  console.log('🎉 ALL v1.6.0 UI & PROBE TESTS PASSED PERFECTLY!');
   await browser.close();
 })();

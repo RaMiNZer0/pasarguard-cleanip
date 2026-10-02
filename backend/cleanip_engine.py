@@ -5,9 +5,11 @@ Handles multi-feed fetching, latency verification, custom IPs, and filtering per
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
 import re
+import socket
 import ssl
 import time
 import urllib.request
@@ -165,7 +167,7 @@ async def scan_and_rank_ips(
     async def _test_with_limit(candidate: dict) -> dict:
         target_ip = candidate["ip"]
         async with semaphore:
-            lat = await test_ip_latency(target_ip, timeout=timeout_per_ip)
+            lat = await check_ip_latency(target_ip, timeout=timeout_per_ip)
             return {
                 "ip": target_ip,
                 "latency_ms": lat,
@@ -251,3 +253,205 @@ def get_candidate_probe_list(limit: int = 15) -> List[Dict[str, Any]]:
             break
 
     return candidates
+
+
+CF_NETWORKS = [
+    ipaddress.ip_network("173.245.48.0/20"),
+    ipaddress.ip_network("103.21.244.0/22"),
+    ipaddress.ip_network("103.22.200.0/22"),
+    ipaddress.ip_network("103.31.4.0/22"),
+    ipaddress.ip_network("141.101.64.0/18"),
+    ipaddress.ip_network("108.162.192.0/18"),
+    ipaddress.ip_network("190.93.240.0/20"),
+    ipaddress.ip_network("188.114.96.0/20"),
+    ipaddress.ip_network("197.234.240.0/22"),
+    ipaddress.ip_network("198.41.128.0/17"),
+    ipaddress.ip_network("162.158.0.0/15"),
+    ipaddress.ip_network("104.16.0.0/12"),
+    ipaddress.ip_network("172.64.0.0/13"),
+    ipaddress.ip_network("131.0.72.0/22"),
+]
+
+
+def is_cloudflare_ip(ip_str: str) -> bool:
+    try:
+        ip_obj = ipaddress.ip_address(ip_str)
+        return any(ip_obj in net for net in CF_NETWORKS)
+    except Exception:
+        return False
+
+
+async def diagnose_infrastructure(
+    domain: str,
+    port: int = 443,
+    clean_ip: Optional[str] = None,
+    timeout: float = 4.0
+) -> Dict[str, Any]:
+    """
+    Performs a 3-tier end-to-end diagnostic of the Cloudflare CDN infrastructure:
+      1. DNS & Cloudflare Orange Cloud (Proxy) Check
+      2. Clean IP + TLS SNI Handshake Check
+      3. End-to-end HTTP/WebSocket probe to PasarGuard Origin
+    """
+    import socket
+    clean_domain = domain.strip().lower()
+    if clean_domain.startswith("http://") or clean_domain.startswith("https://"):
+        clean_domain = clean_domain.split("://", 1)[1].split("/", 1)[0]
+    clean_domain = clean_domain.split(":")[0]
+
+    report = {
+        "domain": clean_domain,
+        "port": port,
+        "clean_ip_tested": clean_ip or "104.16.24.11",
+        "dns_check": {},
+        "tls_check": {},
+        "origin_check": {},
+        "overall_healthy": False,
+        "summary": "",
+    }
+
+    # Step 1: DNS & Cloudflare Orange Cloud Check
+    resolved_ips = []
+    try:
+        loop = asyncio.get_running_loop()
+        addr_info = await loop.getaddrinfo(clean_domain, None)
+        resolved_ips = list(dict.fromkeys(info[4][0] for info in addr_info if info[4]))
+    except Exception as exc:
+        report["dns_check"] = {
+            "status": "error",
+            "is_proxied": False,
+            "ips": [],
+            "message": f"خطا در ریزالو DNS دامنه: {exc}"
+        }
+    else:
+        is_proxied = any(is_cloudflare_ip(ip) for ip in resolved_ips)
+        if is_proxied:
+            report["dns_check"] = {
+                "status": "ok",
+                "is_proxied": True,
+                "ips": resolved_ips,
+                "message": "دامنه به شبکه کلودفلر متصل است و ابر پروکسی (Orange Cloud) فعال است."
+            }
+        else:
+            report["dns_check"] = {
+                "status": "warning",
+                "is_proxied": False,
+                "ips": resolved_ips,
+                "message": "ابر نارنجی (Proxied) در پنل کلودفلر روشن نیست یا دامنه مستقیماً به سرور متصل است."
+            }
+
+    # Step 2: Clean IP + TLS Handshake Check
+    target_clean_ip = clean_ip or (resolved_ips[0] if (resolved_ips and report["dns_check"].get("is_proxied")) else "104.16.24.11")
+    report["clean_ip_tested"] = target_clean_ip
+
+    start_tls = time.time()
+    try:
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
+
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(target_clean_ip, port, ssl=ssl_ctx, server_hostname=clean_domain),
+            timeout=timeout,
+        )
+        tls_latency = round((time.time() - start_tls) * 1000, 1)
+        report["tls_check"] = {
+            "status": "ok",
+            "latency_ms": tls_latency,
+            "message": f"هندشیک امن TLS با موفقیت انجام شد ({tls_latency}ms)."
+        }
+    except Exception as exc:
+        report["tls_check"] = {
+            "status": "error",
+            "latency_ms": -1.0,
+            "message": f"خطا در هندشیک TLS روی پورت {port}: {str(exc)}"
+        }
+        report["origin_check"] = {
+            "status": "skipped",
+            "message": "به دلیل عدم برقراری هندشیک TLS، تست سرور مبدا انجام نشد."
+        }
+        report["summary"] = "ارتباط اولیه با آی‌پی کلودفلر ناموفق بود."
+        return report
+
+    # Step 3: End-to-End WebSocket/XHTTP Probe to PasarGuard Origin
+    try:
+        probe_req = (
+            f"GET / HTTP/1.1\r\n"
+            f"Host: {clean_domain}\r\n"
+            f"User-Agent: PasarGuard-CleanIP-Diagnostic/1.0\r\n"
+            f"Upgrade: websocket\r\n"
+            f"Connection: Upgrade\r\n"
+            f"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
+            f"Sec-WebSocket-Version: 13\r\n"
+            f"\r\n"
+        ).encode("utf-8")
+
+        writer.write(probe_req)
+        await writer.drain()
+
+        response_header = await asyncio.wait_for(reader.readline(), timeout=timeout)
+        status_line = response_header.decode("utf-8", errors="ignore").strip()
+
+        try:
+            writer.close()
+            await writer.wait_closed()
+        except Exception:
+            pass
+
+        http_code = None
+        match = re.search(r"HTTP/\d\.\d\s+(\d{3})", status_line)
+        if match:
+            http_code = int(match.group(1))
+
+        if http_code in (101, 200, 400, 404):
+            report["origin_check"] = {
+                "status": "ok",
+                "http_status": http_code,
+                "message": "سرور پاسارگارد و هسته Xray ارتباط کلودفلر را با موفقیت دریافت و پاسخ دادند.",
+                "advice": "زیرساخت کاملاً سالم و آماده عبور ترافیک است."
+            }
+            report["overall_healthy"] = True
+            report["summary"] = "✅ زیرساخت ۱۰۰٪ آماده و سالم است."
+        elif http_code == 521:
+            report["origin_check"] = {
+                "status": "error",
+                "http_status": 521,
+                "message": "خطای 521 کلودفلر (Web Server Is Down): سرور پاسارگارد روی پورت انتخابی پاسخی به کلودفلر نمی‌دهد.",
+                "advice": f"بررسی کنید که اینباند مربوطه در پاسارگارد فعال باشد و فایروال سرور پورت {port} را نبسته باشد."
+            }
+            report["summary"] = f"پورت سرور پاسارگارد ({port}) به کلودفلر پاسخ نمی‌دهد."
+        elif http_code in (522, 523, 524):
+            report["origin_check"] = {
+                "status": "error",
+                "http_status": http_code,
+                "message": f"خطای {http_code} کلودفلر (تایم‌اوت اتصال به سرور مبدا).",
+                "advice": "آی‌پی سرور خارج را در DNS کلودفلر چک کنید و پورت را بررسی نمایید."
+            }
+            report["summary"] = "مهلت اتصال کلودفلر به سرور پاسارگارد به پایان رسید."
+        elif http_code in (525, 526):
+            report["origin_check"] = {
+                "status": "error",
+                "http_status": http_code,
+                "message": f"خطای {http_code} کلودفلر (عدم تطابق گواهی SSL سرور مبدا).",
+                "advice": "در پنل کلودفلر در بخش SSL/TLS حالت رمزگذاری را روی Flexible یا Full قرار دهید."
+            }
+            report["summary"] = "مشکل گواهی SSL بین کلودفلر و سرور پاسارگارد."
+        else:
+            report["origin_check"] = {
+                "status": "warning",
+                "http_status": http_code,
+                "message": f"پاسخ دریافتی: {status_line or 'بدون پاسخ مشخص'}",
+                "advice": "اتصال اولیّه انجام شد اما پاسخ غیرمعمول بود."
+            }
+            report["overall_healthy"] = True
+            report["summary"] = "زیرساخت پاسخگو است ولی پاسخ پروتکل غیرمعمول بود."
+
+    except Exception as exc:
+        report["origin_check"] = {
+            "status": "error",
+            "message": f"خطا در ارسال پروب به سرور مبدا: {exc}",
+            "advice": "ارتباط قطع شد یا تایم‌اوت اتفاق افتاد."
+        }
+        report["summary"] = "ارتباط با سرور مبدا برقرار نشد."
+
+    return report

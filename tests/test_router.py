@@ -111,3 +111,21 @@ def test_get_candidates(client):
     assert isinstance(data["candidates"], list)
     assert len(data["candidates"]) > 0
     assert "ip" in data["candidates"][0]
+
+
+def test_diagnose_endpoint(client, monkeypatch):
+    """Test /diagnose endpoint"""
+    async def mock_diag(*args, **kwargs):
+        return {
+            "domain": kwargs.get("domain", "test.com"),
+            "port": kwargs.get("port", 443),
+            "overall_healthy": True,
+            "summary": "OK"
+        }
+
+    monkeypatch.setattr("backend.cleanip_engine.diagnose_infrastructure", mock_diag)
+    res = client.post("/api/cleanip/diagnose", json={"host_id": 1})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["overall_healthy"] is True
+    assert data["port"] == 443

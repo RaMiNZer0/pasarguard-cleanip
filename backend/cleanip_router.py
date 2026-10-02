@@ -82,7 +82,7 @@ def get_current_settings() -> CleanIPSettings:
     return CleanIPSettings.model_validate(raw)
 
 
-CURRENT_VERSION = "1.5.0"
+CURRENT_VERSION = "1.6.0"
 RAW_BASE_URL = "https://raw.githubusercontent.com/RaMiNZer0/pasarguard-cleanip/main"
 
 
@@ -272,23 +272,90 @@ async def get_hosts_list(db=Depends(get_db), _=Depends(require_permission("hosts
     if not PASARGUARD_NATIVE:
         # Mock hosts for testing and standalone dev
         return [
-            {"id": 1, "remark": "Direct VLESS", "address": ["example.com"], "port": 443},
-            {"id": 2, "remark": "Cloudflare CDN VLESS", "address": ["104.16.24.11"], "port": 2053},
+            {"id": 1, "remark": "Direct VLESS", "address": ["example.com"], "port": 443, "sni": "example.com"},
+            {"id": 2, "remark": "Cloudflare CDN VLESS", "address": ["104.16.24.11"], "port": 2053, "sni": "cf.example.com"},
         ]
 
     from app.models.host import HostListQuery
     query = HostListQuery()
     hosts = await host_operator.get_hosts(db=db, query=query)
-    return [
-        {
+    results = []
+    for h in hosts:
+        addr_list = list(h.address) if isinstance(h.address, (set, list)) else [str(h.address)]
+        domain_sni = getattr(h, "sni", None) or getattr(h, "host", None)
+        if not domain_sni:
+            for a in addr_list:
+                if not re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", str(a)):
+                    domain_sni = str(a)
+                    break
+        results.append({
             "id": h.id,
             "remark": h.remark,
-            "address": list(h.address) if isinstance(h.address, (set, list)) else [str(h.address)],
+            "address": addr_list,
             "port": _resolve_port(h.port, h.inbound_tag),
             "inbound_tag": h.inbound_tag,
-        }
-        for h in hosts
-    ]
+            "sni": domain_sni,
+        })
+    return results
+
+
+class DiagnoseRequest(BaseModel):
+    host_id: Optional[int] = None
+    domain: Optional[str] = None
+    port: Optional[int] = None
+    clean_ip: Optional[str] = None
+
+
+@router.post("/diagnose")
+async def run_diagnose(
+    payload: DiagnoseRequest,
+    db=Depends(get_db),
+    _=Depends(require_permission("hosts", "read")),
+):
+    """Executes 3-tier end-to-end diagnostic of host infrastructure."""
+    from backend.cleanip_engine import diagnose_infrastructure
+    target_domain = payload.domain
+    target_port = payload.port or 443
+    target_clean_ip = payload.clean_ip
+    host_remark = "سفارشی"
+
+    if payload.host_id:
+        if PASARGUARD_NATIVE:
+            try:
+                host = await host_operator.get_validated_host(db=db, host_id=payload.host_id)
+                host_remark = getattr(host, "remark", f"Host #{payload.host_id}")
+                target_port = _resolve_port(host.port, host.inbound_tag) or 443
+
+                # Extract domain / SNI from host
+                domain_cand = getattr(host, "sni", None) or getattr(host, "host", None)
+                if not domain_cand:
+                    addrs = list(host.address) if isinstance(host.address, (list, set)) else [str(host.address)]
+                    for a in addrs:
+                        if not re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", str(a)):
+                            domain_cand = str(a)
+                            break
+                        else:
+                            target_clean_ip = str(a)
+                target_domain = domain_cand or target_domain
+            except Exception as e:
+                logger.error(f"Error fetching host #{payload.host_id} for diagnosis: {e}")
+        else:
+            host_remark = f"Host #{payload.host_id}"
+            target_domain = target_domain or "example.com"
+
+    if not target_domain:
+        raise HTTPException(
+            status_code=400,
+            detail="دامنه یا هاست مشخصی برای عیب‌یابی یافت نشد (Domain or host not found)."
+        )
+
+    res = await diagnose_infrastructure(
+        domain=target_domain,
+        port=target_port,
+        clean_ip=target_clean_ip,
+    )
+    res["host_remark"] = host_remark
+    return res
 
 
 @router.post("/settings")

@@ -86,3 +86,32 @@ def test_get_candidate_probe_list():
     assert len(candidates) > 0
     assert "ip" in candidates[0]
     assert "isp" in candidates[0]
+
+
+@pytest.mark.asyncio
+async def test_diagnose_infrastructure():
+    """Test 3-tier infrastructure diagnosis"""
+    from backend.cleanip_engine import diagnose_infrastructure
+
+    mock_reader = AsyncMock()
+    mock_reader.readline.return_value = b"HTTP/1.1 101 Switching Protocols\r\n"
+    mock_writer = AsyncMock()
+    mock_writer.write = MagicMock()
+    mock_writer.close = MagicMock()
+    mock_writer.wait_closed = AsyncMock()
+
+    with patch("asyncio.get_running_loop") as mock_loop, \
+         patch("asyncio.open_connection", new_callable=AsyncMock) as mock_open:
+
+        # Mock loop getaddrinfo returning Cloudflare IP
+        mock_loop_instance = MagicMock()
+        mock_loop_instance.getaddrinfo = AsyncMock(return_value=[(None, None, None, None, ("104.21.15.20", 443))])
+        mock_loop.return_value = mock_loop_instance
+
+        mock_open.return_value = (mock_reader, mock_writer)
+
+        report = await diagnose_infrastructure(domain="sub.example.com", port=8443)
+        assert report["overall_healthy"] is True
+        assert report["dns_check"]["is_proxied"] is True
+        assert report["origin_check"]["http_status"] == 101
+

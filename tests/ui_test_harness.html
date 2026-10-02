@@ -116,8 +116,35 @@
         if (url.includes('/api/cleanip/check-update')) {
           return new Response(JSON.stringify({
             has_update: false,
-            latest_version: '1.5.0',
-            changelog: 'سیستم اعتبارسنجی زنده پینگ از داخل مرورگر و نود ایران'
+            latest_version: '1.6.0',
+            changelog: 'سیستم عیب‌یابی و سنجش سلامت هوشمند ۳ لایه‌ای زیرساخت کلودفلر'
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (url.includes('/api/cleanip/diagnose')) {
+          return new Response(JSON.stringify({
+            domain: "sub.example.com",
+            port: 8443,
+            overall_healthy: true,
+            summary: "زیرساخت CDN و کلین آی‌پی کاملاً سالم و پاسخگو است.",
+            dns_check: {
+              status: "ok",
+              is_proxied: true,
+              resolved_ips: ["104.21.15.20", "172.67.180.55"],
+              advice: null
+            },
+            clean_ip_check: {
+              status: "ok",
+              ip: "104.16.24.11",
+              latency_ms: 88.5,
+              message: "اتصال TLS SNI با موفقیت برقرار شد.",
+              advice: null
+            },
+            origin_check: {
+              status: "ok",
+              http_status: 101,
+              message: "پاسخ 101 Switching Protocols از هسته سرور پاسارگارد تایید شد.",
+              advice: null
+            }
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
         if (url.includes('/api/cleanip/settings') || url.includes('/api/cleanip/scan-and-apply')) {

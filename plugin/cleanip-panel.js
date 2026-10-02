@@ -1,7 +1,8 @@
 /**
  * PasarGuard Auto Clean IP - Web UI Dashboard Extension
- * Version 1.5.0
+ * Version 1.6.0
  * Features:
+ *  - 3-tier Cloudflare Infrastructure Diagnostic (DNS proxy, Clean IP TLS, Origin core probe)
  *  - Centered isolated-CSS modal with unified smooth scrolling
  *  - Live in-browser ping probe from inside Iran
  *  - Multi-feed operator-based clean IP engine (IRCF / vfarid)
@@ -15,7 +16,7 @@
   const TAB_ID = 'pg-cleanip-nav-button';
   const MODAL_ID = 'pg-cleanip-modal-overlay';
   const STYLES_ID = 'pg-cleanip-injected-styles';
-  const VERSION = '1.5.0';
+  const VERSION = '1.6.0';
 
   // Inject Self-Contained Isolated CSS (Zero Tailwind dependency)
   function injectStyles() {
@@ -395,7 +396,7 @@
             <span>⚙️ تنظیمات و آی‌پی دستی</span>
           </button>
           <button id="tab-btn-status" class="pg-cleanip-tab-btn">
-            <span>📊 پایش سلامت و پینگ زنده</span>
+            <span>🩺 عیب‌یابی و پایش سلامت</span>
             ${hasUpdate ? '<span style="width:6px; height:6px; border-radius:50%; background:#f59e0b;"></span>' : ''}
           </button>
         </div>
@@ -452,8 +453,11 @@
                         <span style="font-size:10px; color:#71717a; font-family:monospace; margin-top:2px;">${h.inbound_tag || 'Port ' + (effectivePort || 'Auto')}</span>
                       </div>
                     </div>
-                    <div style="flex-shrink:0; margin-right:8px;">
+                    <div style="flex-shrink:0; margin-right:8px; display:flex; align-items:center; gap:6px;">
                       ${isCdn ? `
+                        <button type="button" class="cleanip-quick-diag-btn" data-host-id="${h.id}" title="تست و عیب‌یابی زیرساخت کلودفلر" style="padding:2px 7px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:10px; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
+                          🩺 تست زیرساخت
+                        </button>
                         <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; font-family:monospace; font-weight:600; border:1px solid rgba(16,185,129,0.3);">
                           ☁️ CDN ${effectivePort ? `(پورت ${effectivePort})` : ''}
                         </span>
@@ -547,6 +551,27 @@
                 <span style="width:6px; height:6px; border-radius:50%; background:#10b981;"></span>
                 فعال
               </span>
+            </div>
+
+            <!-- End-to-End Infrastructure Diagnostic Section -->
+            <div style="padding:14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-weight:700; color:#10b981; display:flex; align-items:center; gap:6px;">
+                  🩺 عیب‌یابی هوشمند زیرساخت کلودفلر (۳ لایه):
+                </span>
+              </div>
+              <p style="font-size:11px; color:#71717a; margin:0; line-height:1.5;">
+                تست خودکار و بدون نیاز به کلاینت: بررسی ابر نارنجی کلودفلر، هندشیک امنیتی TLS روی Clean IP، و پاسخگویی هسته سرور پاسارگارد.
+              </p>
+              <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <select id="cleanip-diag-host-select" style="flex:1; min-width:180px; padding:8px 10px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:12px; outline:none;">
+                  ${hostsList.map(h => `<option value="${h.id}">${h.remark || 'Host #' + h.id} (${h.sni || (Array.isArray(h.address)?h.address[0]:h.address) || 'Port ' + (h.port || '443')})</option>`).join('')}
+                </select>
+                <button id="cleanip-run-diag-btn" type="button" style="padding:8px 14px; border-radius:8px; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.4); font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                  🚀 شروع عیب‌یابی زیرساخت
+                </button>
+              </div>
+              <div id="cleanip-diag-result-container" style="display:none; flex-direction:column; gap:8px; padding:10px; border-radius:8px; background:rgba(0,0,0,0.25); border:1px solid #27272a; font-size:11px;"></div>
             </div>
 
             <!-- In-Browser Live Probe Section -->
@@ -836,6 +861,110 @@
         }
       };
     }
+
+    // Infrastructure Diagnostic Handler
+    const diagBtn = document.getElementById('cleanip-run-diag-btn');
+    const diagSelect = document.getElementById('cleanip-diag-host-select');
+    const diagResult = document.getElementById('cleanip-diag-result-container');
+
+    const executeDiagnose = async (hostId) => {
+      if (!diagResult) return;
+      diagResult.style.display = 'flex';
+      diagResult.innerHTML = `
+        <div style="text-align:center; padding:12px; color:#10b981; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span>⏳</span>
+          <span>در حال ارسال پروب‌های ۳ لایه‌ای به کلودفلر و سرور مبدا...</span>
+        </div>
+      `;
+      if (diagBtn) diagBtn.disabled = true;
+
+      try {
+        const res = await fetch('/api/cleanip/diagnose', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ host_id: Number(hostId) })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          diagResult.innerHTML = `<div style="color:#ef4444; padding:8px;">❌ خطا: ${data.detail || 'عیب‌یابی با خطا مواجه شد.'}</div>`;
+          return;
+        }
+
+        const isHealthy = data.overall_healthy;
+        const dns = data.dns_check || {};
+        const clean = data.clean_ip_check || {};
+        const origin = data.origin_check || {};
+
+        diagResult.innerHTML = `
+          <!-- Header Status -->
+          <div style="padding:8px 12px; border-radius:6px; background:${isHealthy ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'}; border:1px solid ${isHealthy ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}; color:${isHealthy ? '#10b981' : '#ef4444'}; font-weight:700; display:flex; align-items:center; justify-content:space-between;">
+            <span>${isHealthy ? '✅ زیرساخت و Clean IP آماده سرویس‌دهی است' : '⚠️ نیاز به بررسی زیرساخت'}</span>
+            <span style="font-family:monospace; font-size:10px;">${data.domain}:${data.port}</span>
+          </div>
+
+          <!-- Layer 1: DNS & Orange Cloud -->
+          <div style="padding:8px 10px; border-radius:6px; border:1px solid #27272a; background:rgba(255,255,255,0.02); display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:600;">۱. وضعیت ابر کلودفلر (DNS & Proxy):</span>
+              <span style="color:${dns.is_proxied ? '#10b981' : '#ef4444'}; font-weight:700;">
+                ${dns.is_proxied ? '🟢 فعال (پشت کلودفلر)' : '🔴 غیرفعال (ابر خاکستری یا دامنه مستقیم)'}
+              </span>
+            </div>
+            <div style="color:#a1a1aa; font-size:10px;">آی‌پی‌های دامنه: ${(dns.resolved_ips || []).join(', ') || 'یافت نشد'}</div>
+            ${dns.advice ? `<div style="color:#f59e0b; font-size:10px; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; margin-top:2px;">💡 ${dns.advice}</div>` : ''}
+          </div>
+
+          <!-- Layer 2: Clean IP TLS Handshake -->
+          <div style="padding:8px 10px; border-radius:6px; border:1px solid #27272a; background:rgba(255,255,255,0.02); display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:600;">۲. اتصال TLS کلین آی‌پی (SNI Handshake):</span>
+              <span style="color:${clean.status === 'ok' ? '#10b981' : '#ef4444'}; font-weight:700;">
+                ${clean.status === 'ok' ? `🟢 موفق (${clean.latency_ms}ms)` : '🔴 ناموفق / مسدود'}
+              </span>
+            </div>
+            <div style="color:#a1a1aa; font-size:10px;">کلین آی‌پی تست‌شده: ${clean.ip || '-'} | ${clean.message || ''}</div>
+            ${clean.advice ? `<div style="color:#f59e0b; font-size:10px; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; margin-top:2px;">💡 ${clean.advice}</div>` : ''}
+          </div>
+
+          <!-- Layer 3: Origin Server Core Response -->
+          <div style="padding:8px 10px; border-radius:6px; border:1px solid #27272a; background:rgba(255,255,255,0.02); display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:600;">۳. پاسخ هسته پاسارگارد (Origin Server):</span>
+              <span style="color:${origin.status === 'ok' ? '#10b981' : (origin.status === 'warning' ? '#f59e0b' : '#ef4444')}; font-weight:700;">
+                ${origin.status === 'ok' ? `🟢 پاسخ تایید شد (HTTP ${origin.http_status || '101'})` : (origin.status === 'warning' ? `🟡 ${origin.http_status || 'پاسخ نامتعارف'}` : '🔴 قطع ارتباط مبدا')}
+              </span>
+            </div>
+            <div style="color:#a1a1aa; font-size:10px;">${origin.message || ''}</div>
+            ${origin.advice ? `<div style="color:#f59e0b; font-size:10px; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; margin-top:2px;">💡 ${origin.advice}</div>` : ''}
+          </div>
+        `;
+
+      } catch (err) {
+        diagResult.innerHTML = `<div style="color:#ef4444; padding:8px;">خطای ارتباط با سرور: ${err.message}</div>`;
+      } finally {
+        if (diagBtn) diagBtn.disabled = false;
+      }
+    };
+
+    if (diagBtn && diagSelect) {
+      diagBtn.onclick = () => {
+        const val = diagSelect.value;
+        if (val) executeDiagnose(val);
+      };
+    }
+
+    // Quick diagnostic buttons on host rows
+    document.querySelectorAll('.cleanip-quick-diag-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const hostId = btn.getAttribute('data-host-id');
+        switchTab(tabStatus, paneStatus);
+        if (diagSelect) diagSelect.value = hostId;
+        executeDiagnose(hostId);
+      };
+    });
 
     // In-Panel One-Click Auto-Updater
     const runSelfUpdate = async (btn) => {
