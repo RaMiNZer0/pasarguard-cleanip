@@ -437,10 +437,13 @@ async def run_diagnose(
             target_domain = target_domain or "example.com"
 
     if not target_domain:
-        raise HTTPException(
-            status_code=400,
-            detail="دامنه یا هاست مشخصی برای عیب‌یابی یافت نشد (Domain or host not found)."
-        )
+        if target_clean_ip:
+            target_domain = target_clean_ip
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="دامنه یا هاست مشخصی برای عیب‌یابی یافت نشد (Domain or host not found)."
+            )
 
     res = await diagnose_infrastructure(
         domain=target_domain,

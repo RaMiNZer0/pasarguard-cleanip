@@ -1600,7 +1600,7 @@
 
         const isHealthy = data.overall_healthy;
         const dns = data.dns_check || {};
-        const clean = data.clean_ip_check || {};
+        const clean = data.clean_ip_check || data.tls_check || {};
         const origin = data.origin_check || {};
 
         diagResult.innerHTML = `
@@ -1618,7 +1618,7 @@
                 ${dns.is_proxied ? '🟢 فعال (پشت کلودفلر)' : '🔴 غیرفعال (ابر خاکستری یا دامنه مستقیم)'}
               </span>
             </div>
-            <div style="color:#a1a1aa; font-size:10px;">آی‌پی‌های دامنه: ${(dns.resolved_ips || []).join(', ') || 'یافت نشد'}</div>
+            <div style="color:#a1a1aa; font-size:10px;">آی‌پی‌های دامنه: ${(dns.resolved_ips || dns.ips || []).join(', ') || 'یافت نشد'}</div>
             ${dns.advice ? `<div style="color:#f59e0b; font-size:10px; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; margin-top:2px;">💡 ${dns.advice}</div>` : ''}
           </div>
 
@@ -1630,7 +1630,7 @@
                 ${clean.status === 'ok' ? `🟢 موفق (${clean.latency_ms}ms)` : '🔴 ناموفق / مسدود'}
               </span>
             </div>
-            <div style="color:#a1a1aa; font-size:10px;">کلین آی‌پی تست‌شده: ${clean.ip || '-'} | ${clean.message || ''}</div>
+            <div style="color:#a1a1aa; font-size:10px;">کلین آی‌پی تست‌شده: ${clean.ip || data.clean_ip_tested || '-'} | ${clean.message || ''}</div>
             ${clean.advice ? `<div style="color:#f59e0b; font-size:10px; background:rgba(245,158,11,0.1); padding:4px 8px; border-radius:4px; margin-top:2px;">💡 ${clean.advice}</div>` : ''}
           </div>
 

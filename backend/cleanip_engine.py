@@ -401,6 +401,7 @@ async def diagnose_infrastructure(
                 "status": "ok",
                 "is_proxied": True,
                 "ips": resolved_ips,
+                "resolved_ips": resolved_ips,
                 "message": "دامنه به شبکه کلودفلر متصل است و ابر پروکسی (Orange Cloud) فعال است."
             }
         else:
@@ -408,6 +409,7 @@ async def diagnose_infrastructure(
                 "status": "warning",
                 "is_proxied": False,
                 "ips": resolved_ips,
+                "resolved_ips": resolved_ips,
                 "message": "ابر نارنجی (Proxied) در پنل کلودفلر روشن نیست یا دامنه مستقیماً به سرور متصل است."
             }
 
@@ -429,14 +431,18 @@ async def diagnose_infrastructure(
         report["tls_check"] = {
             "status": "ok",
             "latency_ms": tls_latency,
+            "ip": target_clean_ip,
             "message": f"هندشیک امن TLS با موفقیت انجام شد ({tls_latency}ms)."
         }
+        report["clean_ip_check"] = report["tls_check"]
     except Exception as exc:
         report["tls_check"] = {
             "status": "error",
             "latency_ms": -1.0,
+            "ip": target_clean_ip,
             "message": f"خطا در هندشیک TLS روی پورت {port}: {str(exc)}"
         }
+        report["clean_ip_check"] = report["tls_check"]
         report["origin_check"] = {
             "status": "skipped",
             "message": "به دلیل عدم برقراری هندشیک TLS، تست سرور مبدا انجام نشد."
