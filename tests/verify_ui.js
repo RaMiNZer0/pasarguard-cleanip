@@ -117,6 +117,17 @@ const path = require('path');
     }
   }
 
+  // Test "انتخاب همه" button
+  console.log('🎯 Clicking "انتخاب همه"...');
+  await page.click('#cleanip-select-all-btn');
+  await page.waitForTimeout(200);
+  const allCheckedCount = await page.$$eval('.cleanip-select-ip-cb:checked', cbs => cbs.length);
+  const totalCbsCount = await page.$$eval('.cleanip-select-ip-cb', cbs => cbs.length);
+  console.log(`✅ Tab 2: "انتخاب همه" checked count: ${allCheckedCount}/${totalCbsCount}`);
+  if (allCheckedCount !== totalCbsCount || allCheckedCount === 0) {
+    throw new Error('FAIL: "انتخاب همه" failed to select all candidate rows!');
+  }
+
   // Click "انتخاب بهترین‌ها" button (<150ms)
   console.log('🎯 Clicking "انتخاب بهترین‌ها" (<150ms)...');
   await page.click('#cleanip-select-best-btn');

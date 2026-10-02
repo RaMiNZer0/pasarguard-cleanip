@@ -585,7 +585,7 @@
                   <span id="cleanip-selected-summary" style="font-size:11px; padding:2px 8px; border-radius:6px; background:rgba(16,185,129,0.12); color:#10b981; font-weight:600;">۰ انتخاب شده</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                  <button id="cleanip-ping-all-btn" type="button" style="padding:6px 13px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
+                  <button id="cleanip-ping-all-btn" type="button" title="تست پینگ همزمان تمام آی‌پی‌های جدول با سرور (بدون نیاز به تست تک‌به‌تک)" style="padding:6px 13px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
                     ⚡ تست پینگ همه
                   </button>
                   <select id="cleanip-ping-mode-select" style="padding:5px 8px; border-radius:8px; font-size:11px; outline:none; cursor:pointer;">
@@ -627,7 +627,10 @@
                   <button type="button" class="pg-cleanip-filter-chip" data-isp="wifi">مخابرات/Wifi (<span id="count-wifi">0</span>)</button>
                   <button type="button" class="pg-cleanip-filter-chip" data-isp="custom">سفارشی (<span id="count-custom">0</span>)</button>
                 </div>
-                <div style="display:flex; align-items:center; gap:6px;">
+                <div style="display:flex; align-items:center; gap:5px;">
+                  <button id="cleanip-select-all-btn" type="button" title="انتخاب همه آی‌پی‌های این دسته‌بندی" style="padding:3px 8px; border-radius:6px; background:rgba(255,255,255,0.08); color:#e4e4e7; border:1px solid #3f3f46; font-size:10px; font-weight:600; cursor:pointer;">
+                    ✓ انتخاب همه
+                  </button>
                   <button id="cleanip-select-best-btn" type="button" style="padding:3px 8px; border-radius:6px; background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:10px; font-weight:600; cursor:pointer;">
                     ✓ انتخاب بهترین‌ها
                   </button>
@@ -1378,6 +1381,19 @@
         } else {
           showBanner('info', `هیچ آی‌پی فیلترشده‌ای برای پاکسازی وجود ندارد (ابتدا تست پینگ بگیرید).`);
         }
+      };
+    }
+
+    // Select all IPs
+    const selectAllBtn = document.getElementById('cleanip-select-all-btn');
+    if (selectAllBtn) {
+      selectAllBtn.onclick = () => {
+        const targetList = currentFilterIsp === 'all'
+          ? candidateIpsList
+          : candidateIpsList.filter(c => c.isp === currentFilterIsp);
+        targetList.forEach(c => { c.selected = true; });
+        renderCandidateRows(currentFilterIsp);
+        showBanner('info', `✅ تمام ${targetList.length} آی‌پی انتخاب شدند.`);
       };
     }
 
