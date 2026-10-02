@@ -86,6 +86,7 @@ PasarGuard Clean IP Bootstrapper
 """
 import sys
 import os
+from pathlib import Path
 
 # 1. Chain Zomorod or any other sitecustomize if present
 try:
@@ -105,6 +106,15 @@ try:
         cleanip_dir = "/var/lib/pasarguard/cleanip/python"
         if cleanip_dir not in sys.path:
             sys.path.insert(0, cleanip_dir)
+
+        # Make sure PasarGuard app is importable
+        candidates = [Path.cwd(), Path("/code"), Path("/app"), Path("/opt/pasarguard")]
+        for cand in candidates:
+            if (cand / "main.py").is_file() and (cand / "app").is_dir():
+                cand_str = str(cand.resolve())
+                if cand_str not in sys.path:
+                    sys.path.insert(0, cand_str)
+                break
 
         from cleanip_router import router as cleanip_router
         from app.routers import api_router
@@ -142,25 +152,8 @@ print("[CleanIP] Updated PYTHONPATH in /opt/pasarguard/.env")
 PY
 fi
 
-echo -e "${YELLOW}[4/5] Injecting web UI into PasarGuard Dashboard...${NC}"
-export PASARGUARD_ROOT="${PASARGUARD_DIR}"
-export CLEANIP_ROOT="${INSTALL_DIR}"
-bash "${INSTALL_DIR}/plugin/integrate-dashboard.sh" || true
-
-# Setup systemd path watcher for rebuilds
-if command -v systemctl >/dev/null 2>&1; then
-  cp -f "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.service" /etc/systemd/system/
-  cp -f "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.path" /etc/systemd/system/
-  systemctl daemon-reload
-  systemctl enable --now pasarguard-cleanip-watcher.path 2>/dev/null || true
-fi
-
-echo -e "${YELLOW}[5/5] Finalizing and restarting panel...${NC}"
-# Setup automated cron job for background scanning every 3 hours
-CRON_CMD="0 */3 * * * curl -s -X POST http://127.0.0.1:8000/api/cleanip/scan-and-apply >/dev/null 2>&1"
-(crontab -l 2>/dev/null | grep -v "cleanip/scan-and-apply" ; echo "${CRON_CMD}") | crontab - || true
-
-# Restart panel safely
+echo -e "${YELLOW}[4/5] Applying configuration and restarting panel...${NC}"
+# Restart panel safely to load new PYTHONPATH into container
 if command -v pasarguard >/dev/null 2>&1; then
   echo -e "Restarting PasarGuard via official CLI..."
   pasarguard restart || true
@@ -169,6 +162,25 @@ elif [[ -f "${PASARGUARD_DIR}/docker-compose.yml" ]] && command -v docker >/dev/
   docker compose -f "${PASARGUARD_DIR}/docker-compose.yml" restart pasarguard 2>/dev/null || \
   docker restart pasarguard-pasarguard-1 2>/dev/null || true
 fi
+
+echo -e "${YELLOW}[5/5] Injecting web UI into PasarGuard Dashboard...${NC}"
+# Wait a moment for container to finish startup before patching
+sleep 3
+export PASARGUARD_ROOT="${PASARGUARD_DIR}"
+export CLEANIP_ROOT="${INSTALL_DIR}"
+bash "${INSTALL_DIR}/plugin/integrate-dashboard.sh" || true
+
+# Setup systemd path watcher for container rebuilds
+if command -v systemctl >/dev/null 2>&1; then
+  cp -f "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.service" /etc/systemd/system/
+  cp -f "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.path" /etc/systemd/system/
+  systemctl daemon-reload
+  systemctl enable --now pasarguard-cleanip-watcher.path 2>/dev/null || true
+fi
+
+# Setup automated cron job for background scanning every 3 hours
+CRON_CMD="0 */3 * * * curl -s -X POST http://127.0.0.1:8000/api/cleanip/scan-and-apply >/dev/null 2>&1"
+(crontab -l 2>/dev/null | grep -v "cleanip/scan-and-apply" ; echo "${CRON_CMD}") | crontab - || true
 
 echo -e "\n${GREEN}======================================================${NC}"
 echo -e "${GREEN}  ✅ PasarGuard Auto Clean IP successfully installed! ${NC}"
