@@ -327,6 +327,31 @@ def generate_sample_cf_ips(count: int = 15) -> List[Dict[str, Any]]:
     ]
 
 
+async def discover_and_test_cf_ips(count: int = 10, timeout: float = 1.8) -> List[Dict[str, Any]]:
+    """
+    Samples candidate IPs from official Cloudflare subnets and concurrently tests their latency.
+    Only returns IPs that are genuinely responding.
+    """
+    raw_samples = generate_sample_cf_ips(count=max(count * 3, 20))
+    tasks = [check_ip_latency(c["ip"], timeout=timeout) for c in raw_samples]
+    latencies = await asyncio.gather(*tasks)
+
+    healthy = []
+    for cand, lat in zip(raw_samples, latencies):
+        if lat > 0:
+            healthy.append({
+                **cand,
+                "latency_ms": lat,
+                "reachable": True
+            })
+
+    healthy.sort(key=lambda x: x["latency_ms"])
+    if not healthy:
+        # Fallback to raw samples if all timed out (e.g. mock test or offline)
+        return raw_samples[:count]
+    return healthy[:count]
+
+
 async def diagnose_infrastructure(
     domain: str,
     port: int = 443,

@@ -161,9 +161,81 @@ def test_apply_selected_endpoint(client):
 
 def test_discover_cf_ips_endpoint(client):
     """Test /discover-cf-ips endpoint"""
-    res = client.post("/api/cleanip/discover-cf-ips?count=10")
+    res = client.post("/api/cleanip/discover-cf-ips?count=10&auto_ping=false")
     assert res.status_code == 200
     data = res.json()
     assert "candidates" in data
     assert len(data["candidates"]) == 10
     assert "ip" in data["candidates"][0]
+
+
+def test_discover_cf_ips_with_auto_ping(client, monkeypatch):
+    """Test /discover-cf-ips endpoint with auto_ping enabled"""
+    async def mock_discover(count=10, timeout=1.8):
+        return [
+            {"ip": f"104.16.1.{i}", "latency_ms": 80.0 + i, "reachable": True, "isp": "wifi"}
+            for i in range(count)
+        ]
+
+    monkeypatch.setattr("backend.cleanip_engine.discover_and_test_cf_ips", mock_discover)
+    res = client.post("/api/cleanip/discover-cf-ips?count=5&auto_ping=true")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data["candidates"]) == 5
+    assert data["candidates"][0]["latency_ms"] == 80.0
+    assert data["candidates"][0]["reachable"] is True
+
+
+def test_sni_protection_on_native_modify(client, monkeypatch):
+    """Test that SNI is preserved from domain address if sni was empty"""
+    class MockHost:
+        id = 1
+        remark = "CDN Test"
+        address = ["cdn.domain.com"]
+        sni = ""
+        port = 443
+        inbound_tag = "cf-in"
+
+    modified_captured = []
+
+    class MockHostOp:
+        async def get_validated_host(self, db, host_id):
+            return MockHost()
+
+        async def modify_host(self, db, host_id, modified_host, admin):
+            modified_captured.append(modified_host)
+
+    class MockBaseHost:
+        @classmethod
+        def model_validate(cls, obj):
+            return cls()
+
+        def model_dump(self):
+            return {
+                "remark": "CDN Test",
+                "address": ["cdn.domain.com"],
+                "sni": "",
+                "port": 443,
+                "inbound_tag": "cf-in"
+            }
+
+    class MockCreateHost(dict):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.__dict__ = self
+
+    monkeypatch.setattr("backend.cleanip_router.PASARGUARD_NATIVE", True)
+    monkeypatch.setattr("backend.cleanip_router.host_operator", MockHostOp())
+    monkeypatch.setattr("backend.cleanip_router.BaseHost", MockBaseHost)
+    monkeypatch.setattr("backend.cleanip_router.CreateHost", MockCreateHost)
+
+    res = client.post("/api/cleanip/apply-selected", json={
+        "host_ids": [1],
+        "selected_ips": ["104.16.24.11"]
+    })
+    assert res.status_code == 200
+    assert len(modified_captured) == 1
+    # Check that sni was populated from address domain
+    assert modified_captured[0].sni == "cdn.domain.com"
+    assert modified_captured[0].address == {"104.16.24.11"}
+

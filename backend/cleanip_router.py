@@ -42,6 +42,9 @@ try:
 except ImportError:
     # Standalone mode / testing fallback
     PASARGUARD_NATIVE = False
+    host_operator = None
+    BaseHost = None
+    CreateHost = None
     logger.info("PasarGuard native modules not detected, running in standalone/test mode.")
 
     async def get_db():
@@ -84,7 +87,7 @@ def get_current_settings() -> CleanIPSettings:
     return CleanIPSettings.model_validate(raw)
 
 
-CURRENT_VERSION = "1.7.1"
+CURRENT_VERSION = "1.8.0"
 RAW_BASE_URL = "https://raw.githubusercontent.com/RaMiNZer0/pasarguard-cleanip/main"
 
 
@@ -164,12 +167,16 @@ async def get_candidates(_=Depends(require_permission("hosts", "read"))):
 
 @router.post("/discover-cf-ips")
 async def discover_cf_ips(
-    count: int = 15,
+    count: int = 12,
+    auto_ping: bool = True,
     _=Depends(require_permission("hosts", "read"))
 ):
-    """Samples and discovers candidate IPs from official Cloudflare subnets."""
-    from backend.cleanip_engine import generate_sample_cf_ips
-    sampled = generate_sample_cf_ips(count=min(count, 50))
+    """Samples and discovers candidate IPs from official Cloudflare subnets, testing latency."""
+    from backend.cleanip_engine import discover_and_test_cf_ips, generate_sample_cf_ips
+    if auto_ping:
+        sampled = await discover_and_test_cf_ips(count=min(count, 30))
+    else:
+        sampled = generate_sample_cf_ips(count=min(count, 30))
     return {"candidates": sampled}
 
 
@@ -470,6 +477,17 @@ async def scan_and_apply(
 
                 host_model = BaseHost.model_validate(current_host)
                 host_dict = host_model.model_dump()
+
+                # Protect SNI: if host.sni is empty, preserve the original domain from address
+                if not host_dict.get("sni"):
+                    raw_addr = getattr(current_host, "address", None)
+                    old_addrs = list(raw_addr) if isinstance(raw_addr, (list, set)) else [str(raw_addr or "")]
+                    for a in old_addrs:
+                        s = str(a).strip()
+                        if s and not re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", s):
+                            host_dict["sni"] = s
+                            break
+
                 host_dict["address"] = set(all_clean_ips)
 
                 modified_host = CreateHost(**host_dict)
@@ -559,6 +577,17 @@ async def apply_selected_ips(
                 host_remark = getattr(current_host, "remark", f"Host #{host_id}")
                 host_model = BaseHost.model_validate(current_host)
                 host_dict = host_model.model_dump()
+
+                # Protect SNI: if host.sni is empty, preserve the original domain from address
+                if not host_dict.get("sni"):
+                    raw_addr = getattr(current_host, "address", None)
+                    old_addrs = list(raw_addr) if isinstance(raw_addr, (list, set)) else [str(raw_addr or "")]
+                    for a in old_addrs:
+                        s = str(a).strip()
+                        if s and not re.match(r"^(?:\d{1,3}\.){3}\d{1,3}$", s):
+                            host_dict["sni"] = s
+                            break
+
                 host_dict["address"] = set(valid_ips)
 
                 modified_host = CreateHost(**host_dict)

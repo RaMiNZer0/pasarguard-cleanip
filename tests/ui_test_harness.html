@@ -163,8 +163,8 @@
         if (url.includes('/api/cleanip/discover-cf-ips')) {
           return new Response(JSON.stringify({
             candidates: [
-              { ip: '104.16.88.99', isp: 'wifi', provider: 'CF Subnet', source: 'subnet-scan', quality: 'gold' },
-              { ip: '172.67.90.100', isp: 'wifi', provider: 'CF Subnet', source: 'subnet-scan', quality: 'standard' }
+              { ip: '104.16.88.99', isp: 'wifi', provider: 'CF Subnet', source: 'subnet-scan', quality: 'gold', latency_ms: 84.0, reachable: true },
+              { ip: '172.67.90.100', isp: 'wifi', provider: 'CF Subnet', source: 'subnet-scan', quality: 'standard', latency_ms: 125.0, reachable: true }
             ]
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }

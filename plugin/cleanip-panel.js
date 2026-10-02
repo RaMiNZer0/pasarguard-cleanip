@@ -1,12 +1,15 @@
 /**
  * PasarGuard Auto Clean IP - Web UI Dashboard Extension
- * Version 1.7.1
+ * Version 1.8.0
  * Features:
+ *  - Theme isolation & full select/option contrast hardening
+ *  - Sticky Tab 2 toolbar & 2-row ergonomic action buttons
+ *  - 1-click cleanup for dead / filtered IPs
  *  - Interactive Clean IP live ping testing & manual candidate selection
  *  - Dual testing modes: High-speed server ping & In-browser client probe
  *  - 3-tier Cloudflare Infrastructure Diagnostic (DNS proxy, Clean IP TLS, Origin core probe)
  *  - Centered isolated-CSS modal with unified smooth scrolling
- *  - Multi-feed operator-based clean IP engine (IRCF / vfarid)
+ *  - Multi-feed operator-based clean IP engine (IRCF / vfarid / Cloudflare Subnets)
  *  - Custom clean IP input with priority injection
  *  - Iranian relay node detection
  *  - 1-click in-panel self-updater
@@ -17,7 +20,7 @@
   const TAB_ID = 'pg-cleanip-nav-button';
   const MODAL_ID = 'pg-cleanip-modal-overlay';
   const STYLES_ID = 'pg-cleanip-injected-styles';
-  const VERSION = '1.7.1';
+  const VERSION = '1.8.0';
 
   // Inject Self-Contained Isolated CSS (Zero Tailwind dependency)
   function injectStyles() {
@@ -58,11 +61,30 @@
         font-family: inherit !important;
         position: relative !important;
       }
+      .pg-cleanip-card select {
+        background-color: #27272a !important;
+        color: #f4f4f5 !important;
+        border: 1px solid #3f3f46 !important;
+        outline: none !important;
+      }
+      .pg-cleanip-card select option {
+        background-color: #18181b !important;
+        color: #f4f4f5 !important;
+      }
       html:not(.dark) .pg-cleanip-card {
         background: #ffffff !important;
         color: #18181b !important;
         border: 1px solid #e4e4e7 !important;
         box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.2) !important;
+      }
+      html:not(.dark) .pg-cleanip-card select {
+        background-color: #f4f4f5 !important;
+        color: #18181b !important;
+        border: 1px solid #d4d4d8 !important;
+      }
+      html:not(.dark) .pg-cleanip-card select option {
+        background-color: #ffffff !important;
+        color: #18181b !important;
       }
       .pg-cleanip-header {
         flex-shrink: 0 !important;
@@ -170,6 +192,25 @@
       html:not(.dark) .pg-cleanip-sticky-bar {
         background: #ffffff !important;
         border-bottom: 1px solid #e4e4e7 !important;
+      }
+      .pg-cleanip-tab2-sticky-toolbar {
+        position: sticky !important;
+        top: -14px !important;
+        z-index: 20 !important;
+        background: #18181b !important;
+        padding: 12px 14px !important;
+        border-radius: 10px !important;
+        border: 1px solid #27272a !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        margin-bottom: 8px !important;
+      }
+      html:not(.dark) .pg-cleanip-tab2-sticky-toolbar {
+        background: #ffffff !important;
+        border: 1px solid #e4e4e7 !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
       }
       .pg-cleanip-host-row {
         display: flex !important;
@@ -521,28 +562,35 @@
 
           <!-- TAB 2: PING TEST & MANUAL IP SELECTION -->
           <div id="cleanip-pane-ping" style="display:none; flex-direction:column; gap:10px; font-size:12px;">
-            <!-- Control Header Card -->
-            <div style="padding:12px 14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:10px;">
+            <!-- Control Header Card (Sticky Toolbar) -->
+            <div class="pg-cleanip-tab2-sticky-toolbar">
               <!-- Header Title -->
               <div>
                 <span style="font-weight:700; font-size:13px; display:block; color:#10b981;">⚡ تست زنده پینگ و گزینش آی‌پی‌های تمیز</span>
                 <p style="font-size:11px; color:#71717a; margin-top:2px;">پینگ آی‌پی‌ها را بسنجید، هر کدام که پینگ سبز و عالی داشت تیک بزنید و اعمال کنید.</p>
               </div>
 
-              <!-- Action Bar -->
-              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                <button id="cleanip-ping-all-btn" type="button" style="padding:7px 14px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
+              <!-- Action Bar (Row 1: Primary Ping & Mode) -->
+              <div style="display:flex; align-items:center; gap:8px;">
+                <button id="cleanip-ping-all-btn" type="button" style="flex:1; padding:7px 14px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:5px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
                   ⚡ تست پینگ همه آی‌پی‌ها
                 </button>
-                <select id="cleanip-ping-mode-select" style="padding:6px 8px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:11px; outline:none; cursor:pointer;">
+                <select id="cleanip-ping-mode-select" style="min-width:145px; padding:7px 10px; border-radius:8px; font-size:11px; outline:none; cursor:pointer;">
                   <option value="server">🌐 تست از سرور (سریع)</option>
                   <option value="browser">💻 تست از مرورگر شما</option>
                 </select>
-                <button id="cleanip-toggle-manual-btn" type="button" style="padding:6px 10px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid #3f3f46; color:#e4e4e7; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+              </div>
+
+              <!-- Action Bar (Row 2: Sources & Utility Actions) -->
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <button id="cleanip-toggle-manual-btn" type="button" style="flex:1; padding:6px 10px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid #3f3f46; color:#e4e4e7; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
                   ➕ افزودن دستی
                 </button>
-                <button id="cleanip-discover-cf-btn" type="button" style="padding:6px 10px; border-radius:8px; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                <button id="cleanip-discover-cf-btn" type="button" style="flex:1.2; padding:6px 10px; border-radius:8px; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:4px;">
                   🎲 اسکن رنج‌های کلودفلر
+                </button>
+                <button id="cleanip-clean-dead-btn" type="button" title="حذف تمام آی‌پی‌هایی که در تست پینگ ناموفق یا قطعی بودند" style="padding:6px 10px; border-radius:8px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#ef4444; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                  🗑️ پاکسازی فیلترشده‌ها
                 </button>
               </div>
 
@@ -613,7 +661,7 @@
                 تست خودکار و بدون نیاز به کلاینت: بررسی ابر نارنجی کلودفلر، هندشیک امنیتی TLS روی Clean IP، و پاسخگویی هسته سرور پاسارگارد.
               </p>
               <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <select id="cleanip-diag-host-select" style="flex:1; min-width:180px; padding:8px 10px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:12px; outline:none;">
+                <select id="cleanip-diag-host-select" dir="ltr" style="flex:1; min-width:180px; padding:8px 10px; border-radius:8px; font-size:12px; outline:none;">
                   ${hostsList.map(h => `<option value="${h.id}">${h.remark || 'Host #' + h.id} (${h.sni || (Array.isArray(h.address)?h.address[0]:h.address) || 'Port ' + (h.port || '443')})</option>`).join('')}
                 </select>
                 <button id="cleanip-run-diag-btn" type="button" style="padding:8px 14px; border-radius:8px; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.4); font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px;">
@@ -890,9 +938,16 @@
     const selectedSummaryText = document.getElementById('cleanip-selected-summary');
 
     function updateSelectedIpsCount() {
-      const count = candidateIpsList.filter(c => c.selected === true).length;
-      if (selectedIpsCountBadge) selectedIpsCountBadge.innerText = count;
-      if (selectedSummaryText) selectedSummaryText.innerText = `${count} آی‌پی انتخاب شده`;
+      const selectedCount = candidateIpsList.filter(c => c.selected === true).length;
+      const totalCount = candidateIpsList.length;
+      if (selectedIpsCountBadge) {
+        selectedIpsCountBadge.innerText = selectedCount > 0 ? `${selectedCount} / ${totalCount}` : `${totalCount}`;
+      }
+      if (selectedSummaryText) {
+        selectedSummaryText.innerText = selectedCount > 0
+          ? `${selectedCount} آی‌پی از مجموع ${totalCount} انتخاب شده`
+          : `۰ آی‌پی از مجموع ${totalCount} انتخاب شده`;
+      }
     }
 
     function updateIspCounts() {
@@ -1277,23 +1332,49 @@
           let added = 0;
           sampled.forEach(item => {
             if (!candidateIpsList.some(c => c.ip === item.ip)) {
-              candidateIpsList.push({
+              candidateIpsList.unshift({
                 ...item,
-                selected: false,
-                latency_ms: undefined
+                selected: (item.latency_ms !== undefined && item.latency_ms > 0 && item.latency_ms < 200),
+                latency_ms: item.latency_ms
               });
               added++;
             }
           });
 
+          // Sort list so lowest latency comes first
+          candidateIpsList.sort((a, b) => {
+            const latA = (a.latency_ms && a.latency_ms > 0) ? a.latency_ms : 99999;
+            const latB = (b.latency_ms && b.latency_ms > 0) ? b.latency_ms : 99999;
+            return latA - latB;
+          });
+
           updateIspCounts();
           renderCandidateRows(currentFilterIsp);
-          showBanner('success', `🎲 تعداد ${added} آی‌پی از رنج‌های کلودفلر استخراج و به جدول اضافه شد. اکنون دکمه «تست پینگ همه» را بزنید.`);
+          updateSelectedIpsCount();
+          showBanner('success', `🎲 تعداد ${added} آی‌پی تست‌شده از سابنت‌های کلودفلر استخراج و به جدول اضافه شد.`);
         } catch (e) {
           showBanner('error', `خطا در دریافت آی‌پی‌ها: ${e.message}`);
         } finally {
           discoverCfBtn.disabled = false;
           discoverCfBtn.innerHTML = origText;
+        }
+      };
+    }
+
+    // Clean Dead / Filtered IPs (-1) Button Handler
+    const cleanDeadBtn = document.getElementById('cleanip-clean-dead-btn');
+    if (cleanDeadBtn) {
+      cleanDeadBtn.onclick = () => {
+        const initialCount = candidateIpsList.length;
+        candidateIpsList = candidateIpsList.filter(c => c.latency_ms !== -1);
+        const removed = initialCount - candidateIpsList.length;
+        updateIspCounts();
+        renderCandidateRows(currentFilterIsp);
+        updateSelectedIpsCount();
+        if (removed > 0) {
+          showBanner('info', `🗑️ تعداد ${removed} آی‌پی قطعی/فیلترشده از لیست حذف شدند.`);
+        } else {
+          showBanner('info', `هیچ آی‌پی فیلترشده‌ای برای پاکسازی وجود ندارد (ابتدا تست پینگ بگیرید).`);
         }
       };
     }

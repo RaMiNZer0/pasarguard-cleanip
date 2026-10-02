@@ -2,7 +2,7 @@ const { chromium } = require('C:/Users/ZerO/AppData/Roaming/npm/node_modules/@pl
 const path = require('path');
 
 (async () => {
-  console.log('🚀 Starting Edge Playwright UI Verification for v1.7.1...');
+  console.log('🚀 Starting Edge Playwright UI Verification for v1.8.0...');
 
   const browser = await chromium.launch({
     channel: 'msedge',
@@ -22,6 +22,13 @@ const path = require('path');
 
   if (cardBox.height > 660 || cardBox.width > 660) {
     throw new Error(`FAIL: Card dimensions out of bounds!`);
+  }
+
+  // Verify Version Badge
+  const versionText = await page.$eval('.pg-cleanip-header', el => el.innerText);
+  console.log(`✅ Version in header: ${versionText.includes('v1.8.0') ? 'v1.8.0 confirmed' : 'FAIL: version mismatch'}`);
+  if (!versionText.includes('v1.8.0')) {
+    throw new Error('FAIL: Header does not contain v1.8.0!');
   }
 
   // 1. Test Tab 1 Scrolling & Sticky Bar
@@ -45,6 +52,18 @@ const path = require('path');
   if (candidateRows.length === 0) {
     throw new Error('FAIL: No candidate rows populated in Tab 2!');
   }
+
+  // Verify Tab 2 Sticky Toolbar existence & computed style
+  const toolbarPosition = await page.$eval('.pg-cleanip-tab2-sticky-toolbar', el => window.getComputedStyle(el).position);
+  console.log(`✅ Tab 2 Sticky Toolbar computed position: ${toolbarPosition}`);
+  if (toolbarPosition !== 'sticky') {
+    throw new Error('FAIL: .pg-cleanip-tab2-sticky-toolbar is not sticky!');
+  }
+
+  // Verify Select Contrast in Dark Mode (Theme Isolation)
+  const selectBg = await page.$eval('#cleanip-ping-mode-select', el => window.getComputedStyle(el).backgroundColor);
+  const selectColor = await page.$eval('#cleanip-ping-mode-select', el => window.getComputedStyle(el).color);
+  console.log(`✅ Ping Mode Select theme isolation: bg=${selectBg}, color=${selectColor}`);
 
   // 2a. Test Manual IP Addition
   console.log('➕ Testing Manual IP Addition drawer...');
@@ -74,10 +93,28 @@ const path = require('path');
 
   // Verify latency badge text
   const badgeTexts = await page.$$eval('.cleanip-ip-latency-badge', elements => elements.map(el => el.innerText));
-  console.log(`✅ Tab 2: Latency badges after ping: ${JSON.stringify(badgeTexts)}`);
+  console.log(`✅ Tab 2: Latency badges sample: ${JSON.stringify(badgeTexts.slice(0, 4))}`);
   const hasLatencyMs = badgeTexts.some(txt => txt.includes('ms'));
   if (!hasLatencyMs) {
     throw new Error('FAIL: No ping latency results rendered in candidate rows!');
+  }
+
+  // 2d. Test Clean Dead / Filtered IPs button
+  const deadRowExistsBefore = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('.cleanip-ip-latency-badge')).some(el => el.innerText.includes('فیلتر') || el.innerText.includes('قطعی'));
+  });
+  console.log(`✅ Tab 2: Dead/filtered row exists before cleanup: ${deadRowExistsBefore}`);
+  if (deadRowExistsBefore) {
+    console.log('🗑️ Clicking "پاکسازی فیلترشده‌ها" button...');
+    await page.click('#cleanip-clean-dead-btn');
+    await page.waitForTimeout(300);
+    const deadRowExistsAfter = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll('.cleanip-ip-latency-badge')).some(el => el.innerText.includes('فیلتر') || el.innerText.includes('قطعی'));
+    });
+    console.log(`✅ Tab 2: Dead/filtered row exists after cleanup: ${deadRowExistsAfter}`);
+    if (deadRowExistsAfter) {
+      throw new Error('FAIL: Clean dead button did not remove filtered IPs!');
+    }
   }
 
   // Click "انتخاب بهترین‌ها" button (<150ms)
@@ -89,6 +126,13 @@ const path = require('path');
   console.log(`✅ Tab 2: Checked IPs count: ${checkedCount}`);
   if (checkedCount === 0) {
     throw new Error('FAIL: "انتخاب بهترین‌ها" failed to select any low-latency IPs!');
+  }
+
+  // Verify badge shows ratio or count
+  const badgeCountText = await page.$eval('#cleanip-tab-selected-ips-count', el => el.innerText);
+  console.log(`✅ Tab 2 Selected Badge: "${badgeCountText}"`);
+  if (!badgeCountText.includes('/') && !badgeCountText.match(/^\d+$/)) {
+    throw new Error('FAIL: Tab badge counter format invalid!');
   }
 
   // Take screenshot of Tab 2 in action
@@ -134,6 +178,6 @@ const path = require('path');
   }
   await page.screenshot({ path: path.resolve(__dirname, 'test_closed.png') });
 
-  console.log('🎉 ALL v1.7.1 UI & WORKSPACE TESTS PASSED PERFECTLY!');
+  console.log('🎉 ALL v1.8.0 UI & WORKSPACE TESTS PASSED PERFECTLY!');
   await browser.close();
 })();
