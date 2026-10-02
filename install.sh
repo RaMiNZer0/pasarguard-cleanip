@@ -55,6 +55,9 @@ fetch_file "plugin/integrate-dashboard.sh" "${INSTALL_DIR}/plugin/integrate-dash
 fetch_file "systemd/pasarguard-cleanip-watcher.service" "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.service"
 fetch_file "systemd/pasarguard-cleanip-watcher.path" "${INSTALL_DIR}/systemd/pasarguard-cleanip-watcher.path"
 
+fetch_file "version.json" "${INSTALL_DIR}/version.json"
+cp -f "${INSTALL_DIR}/version.json" "${DATA_DIR}/version.json" 2>/dev/null || true
+
 chmod +x "${INSTALL_DIR}/plugin/integrate-dashboard.sh"
 
 # Copy python modules directly to shared volume mounted in PasarGuard container
