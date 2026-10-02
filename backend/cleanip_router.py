@@ -1,0 +1,211 @@
+"""
+Clean IP FastAPI Router for PasarGuard.
+Safely integrates with PasarGuard host management without modifying database schemas.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
+
+from .cleanip_engine import scan_and_rank_ips, check_ip_latency
+
+logger = logging.getLogger("cleanip-router")
+
+router = APIRouter(prefix="/api/cleanip", tags=["CleanIP"])
+
+DATA_DIR = Path(os.getenv("CLEANIP_DATA_DIR", "/var/lib/pasarguard/cleanip"))
+SETTINGS_FILE = DATA_DIR / "settings.json"
+HISTORY_FILE = DATA_DIR / "history.json"
+
+# Check if running inside PasarGuard environment
+try:
+    from app.db import AsyncSession, get_db
+    from app.routers.authentication import require_permission, get_current
+    from app.models.admin import AdminDetails
+    from app.operation import OperatorType
+    from app.operation.host import HostOperation
+    from app.models.host import BaseHost, CreateHost
+    PASARGUARD_NATIVE = True
+    host_operator = HostOperation(operator_type=OperatorType.API)
+except ImportError:
+    # Standalone mode / testing fallback
+    PASARGUARD_NATIVE = False
+    logger.info("PasarGuard native modules not detected, running in standalone/test mode.")
+
+    async def get_db():
+        yield None
+
+    def require_permission(resource: str, action: str):
+        def _dummy_perm():
+            return {"username": "admin", "is_sudo": True}
+        return _dummy_perm
+
+
+class CleanIPSettings(BaseModel):
+    target_host_id: Optional[int] = Field(default=None, description="Host ID to update in PasarGuard")
+    enabled_isps: List[str] = Field(default=["mci", "mtn", "wifi"], description="Enabled ISPs")
+    limit_per_isp: int = Field(default=2, ge=1, le=5)
+    auto_pilot: bool = Field(default=True, description="Enable automated updates")
+    auto_interval_hours: int = Field(default=3, ge=1, le=48)
+    custom_ips: List[str] = Field(default_factory=list, description="Custom IP list to prioritize")
+
+
+def _load_json(file_path: Path, default_factory=dict) -> Any:
+    if file_path.is_file():
+        try:
+            return json.loads(file_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning(f"Error reading {file_path}: {e}")
+    return default_factory()
+
+
+def _save_json(file_path: Path, data: Any) -> None:
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    temp_file = file_path.with_suffix(".tmp")
+    temp_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    temp_file.replace(file_path)
+
+
+def get_current_settings() -> CleanIPSettings:
+    raw = _load_json(SETTINGS_FILE, CleanIPSettings().model_dump)
+    return CleanIPSettings.model_validate(raw)
+
+
+@router.get("/status")
+async def get_status(_=Depends(require_permission("hosts", "read"))):
+    """Returns current extension status, active settings, and last update info."""
+    settings = get_current_settings()
+    history = _load_json(HISTORY_FILE, list)
+    latest_event = history[-1] if history else None
+    return {
+        "status": "active",
+        "settings": settings.model_dump(),
+        "latest_update": latest_event,
+        "is_native": PASARGUARD_NATIVE,
+    }
+
+
+@router.get("/hosts")
+async def get_hosts_list(db=Depends(get_db), _=Depends(require_permission("hosts", "read"))):
+    """Returns all available hosts in PasarGuard for UI selection."""
+    if not PASARGUARD_NATIVE:
+        # Mock hosts for testing and standalone dev
+        return [
+            {"id": 1, "remark": "Direct VLESS", "address": ["example.com"], "port": 443},
+            {"id": 2, "remark": "Cloudflare CDN VLESS", "address": ["104.16.24.11"], "port": 2053},
+        ]
+
+    from app.models.host import HostListQuery
+    query = HostListQuery()
+    hosts = await host_operator.get_hosts(db=db, query=query)
+    return [
+        {
+            "id": h.id,
+            "remark": h.remark,
+            "address": list(h.address) if isinstance(h.address, (set, list)) else [str(h.address)],
+            "port": h.port,
+            "inbound_tag": h.inbound_tag,
+        }
+        for h in hosts
+    ]
+
+
+@router.post("/settings")
+async def update_settings(payload: CleanIPSettings, _=Depends(require_permission("hosts", "update"))):
+    """Saves Clean IP settings without touching PasarGuard DB."""
+    _save_json(SETTINGS_FILE, payload.model_dump())
+    return {"success": True, "message": "Settings saved successfully", "settings": payload.model_dump()}
+
+
+@router.post("/scan-and-apply")
+async def scan_and_apply(
+    db=Depends(get_db),
+    admin=Depends(require_permission("hosts", "update")),
+):
+    """
+    Executes live scan across requested ISPs, extracts top healthy IPs,
+    and updates the target host in PasarGuard via the official Host API.
+    """
+    settings = get_current_settings()
+    if not settings.target_host_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No target host selected. Please select a host in Clean IP settings first.",
+        )
+
+    # 1. Scan and rank clean IPs
+    ranked = await scan_and_rank_ips(
+        isps=settings.enabled_isps,
+        limit_per_isp=settings.limit_per_isp,
+    )
+
+    all_clean_ips = []
+    for isp_items in ranked.values():
+        for item in isp_items:
+            if item["ip"] not in all_clean_ips:
+                all_clean_ips.append(item["ip"])
+
+    # 2. Update target host in PasarGuard safely
+    host_remark = "Host"
+    if PASARGUARD_NATIVE:
+        try:
+            current_host = await host_operator.get_validated_host(db=db, host_id=settings.target_host_id)
+            host_remark = current_host.remark
+
+            host_dict = current_host.model_dump()
+            host_dict["address"] = set(all_clean_ips)
+
+            modified_host = CreateHost(**host_dict)
+            await host_operator.modify_host(
+                db=db,
+                host_id=settings.target_host_id,
+                modified_host=modified_host,
+                admin=admin,
+            )
+        except Exception as exc:
+            logger.error(f"Failed to update host in PasarGuard: {exc}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update host in PasarGuard: {exc}",
+            )
+    else:
+        logger.info(f"[Standalone] Mock update host #{settings.target_host_id} with IPs: {all_clean_ips}")
+
+    # 3. Log history
+    event = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "target_host_id": settings.target_host_id,
+        "host_remark": host_remark,
+        "applied_ips": all_clean_ips,
+        "details": ranked,
+    }
+    history = _load_json(HISTORY_FILE, list)
+    history.append(event)
+    # Keep last 50 events
+    _save_json(HISTORY_FILE, history[-50:])
+
+    return {
+        "success": True,
+        "message": f"Successfully updated host '{host_remark}' with {len(all_clean_ips)} clean IPs",
+        "applied_ips": all_clean_ips,
+        "isp_results": ranked,
+    }
+
+
+@router.post("/test-single")
+async def test_single_ip(ip: str, port: int = 443, _=Depends(require_permission("hosts", "read"))):
+    """Tests a single IP latency in real-time."""
+    lat = await check_ip_latency(ip, port=port)
+    return {
+        "ip": ip,
+        "port": port,
+        "latency_ms": lat,
+        "reachable": lat > 0,
+    }

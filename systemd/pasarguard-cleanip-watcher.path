@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch PasarGuard dashboard rebuilds and keep Clean IP integration active
+After=network.target
+
+[Path]
+PathModified=/opt/pasarguard/dashboard/build/index.html
+Unit=pasarguard-cleanip-watcher.service
+
+[Install]
+WantedBy=multi-user.target
