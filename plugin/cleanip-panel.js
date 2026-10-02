@@ -1,6 +1,6 @@
 /**
  * PasarGuard Auto Clean IP - Web UI Dashboard Extension
- * Version 1.7.0
+ * Version 1.7.1
  * Features:
  *  - Interactive Clean IP live ping testing & manual candidate selection
  *  - Dual testing modes: High-speed server ping & In-browser client probe
@@ -17,7 +17,7 @@
   const TAB_ID = 'pg-cleanip-nav-button';
   const MODAL_ID = 'pg-cleanip-modal-overlay';
   const STYLES_ID = 'pg-cleanip-injected-styles';
-  const VERSION = '1.7.0';
+  const VERSION = '1.7.1';
 
   // Inject Self-Contained Isolated CSS (Zero Tailwind dependency)
   function injectStyles() {
@@ -42,9 +42,9 @@
       }
       .pg-cleanip-card {
         width: 95% !important;
-        max-width: 580px !important;
-        height: 590px !important;
-        max-height: 85vh !important;
+        max-width: 610px !important;
+        height: 610px !important;
+        max-height: 88vh !important;
         background: #18181b !important;
         color: #f4f4f5 !important;
         border: 1px solid #27272a !important;
@@ -437,11 +437,10 @@
           </button>
         </div>
 
-        <!-- Alert Banner -->
-        <div id="cleanip-alert-banner" style="display:none; margin:8px 16px 0; padding:8px 12px; border-radius:8px; font-size:12px;"></div>
-
         <!-- Main Body: Single Unified Scroll Container -->
         <div class="pg-cleanip-body">
+          <!-- Alert Banner (Scrolls naturally with content) -->
+          <div id="cleanip-alert-banner" style="display:none; margin-bottom:10px; padding:9px 14px; border-radius:8px; font-size:12px;"></div>
           
           <!-- TAB 1: HOSTS -->
           <div id="cleanip-pane-hosts">
@@ -524,18 +523,39 @@
           <div id="cleanip-pane-ping" style="display:none; flex-direction:column; gap:10px; font-size:12px;">
             <!-- Control Header Card -->
             <div style="padding:12px 14px; border-radius:10px; border:1px solid #27272a; background:rgba(0,0,0,0.15); display:flex; flex-direction:column; gap:10px;">
-              <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-                <div>
-                  <span style="font-weight:700; font-size:13px; display:block; color:#10b981;">⚡ تست زنده پینگ و گزینش آی‌پی‌های تمیز</span>
-                  <p style="font-size:11px; color:#71717a; margin-top:2px;">پینگ آی‌پی‌ها را بسنجید، هر کدام که پینگ سبز و عالی داشت تیک بزنید و اعمال کنید.</p>
+              <!-- Header Title -->
+              <div>
+                <span style="font-weight:700; font-size:13px; display:block; color:#10b981;">⚡ تست زنده پینگ و گزینش آی‌پی‌های تمیز</span>
+                <p style="font-size:11px; color:#71717a; margin-top:2px;">پینگ آی‌پی‌ها را بسنجید، هر کدام که پینگ سبز و عالی داشت تیک بزنید و اعمال کنید.</p>
+              </div>
+
+              <!-- Action Bar -->
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <button id="cleanip-ping-all-btn" type="button" style="padding:7px 14px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
+                  ⚡ تست پینگ همه آی‌پی‌ها
+                </button>
+                <select id="cleanip-ping-mode-select" style="padding:6px 8px; border-radius:8px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:11px; outline:none; cursor:pointer;">
+                  <option value="server">🌐 تست از سرور (سریع)</option>
+                  <option value="browser">💻 تست از مرورگر شما</option>
+                </select>
+                <button id="cleanip-toggle-manual-btn" type="button" style="padding:6px 10px; border-radius:8px; background:rgba(255,255,255,0.06); border:1px solid #3f3f46; color:#e4e4e7; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                  ➕ افزودن دستی
+                </button>
+                <button id="cleanip-discover-cf-btn" type="button" style="padding:6px 10px; border-radius:8px; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.3); color:#38bdf8; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                  🎲 اسکن رنج‌های کلودفلر
+                </button>
+              </div>
+
+              <!-- Expandable Manual Add Drawer -->
+              <div id="cleanip-manual-drawer" style="display:none; padding:10px; border-radius:8px; background:rgba(0,0,0,0.25); border:1px solid #3f3f46; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:11px; font-weight:600; color:#10b981;">➕ چسباندن آی‌پی‌های دلخواه:</span>
+                  <span style="font-size:10px; color:#71717a;">با کاما، فاصله یا اینتر جدا کنید</span>
                 </div>
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <select id="cleanip-ping-mode-select" style="padding:6px 8px; border-radius:6px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:11px; outline:none;">
-                    <option value="server">🌐 تست از سرور (سریع)</option>
-                    <option value="browser">💻 تست از مرورگر شما</option>
-                  </select>
-                  <button id="cleanip-ping-all-btn" type="button" style="padding:7px 14px; border-radius:8px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
-                    ⚡ تست پینگ همه آی‌پی‌ها
+                <div style="display:flex; gap:6px;">
+                  <input type="text" id="cleanip-manual-ips-input" placeholder="مثال: 104.16.24.11, 104.17.150.10, 162.159.136.2" style="flex:1; padding:7px 10px; border-radius:6px; border:1px solid #3f3f46; background:rgba(255,255,255,0.05); color:inherit; font-size:11px; font-family:monospace; outline:none;">
+                  <button id="cleanip-manual-add-submit-btn" type="button" style="padding:7px 12px; border-radius:6px; background:#10b981; color:#fff; border:none; font-weight:700; font-size:11px; cursor:pointer; white-space:nowrap;">
+                    افزودن ↵
                   </button>
                 </div>
               </div>
@@ -564,7 +584,7 @@
             </div>
 
             <!-- Candidate IPs Table / List -->
-            <div id="cleanip-candidates-table" style="display:flex; flex-direction:column; gap:6px; max-height:245px; overflow-y:auto; padding:2px;">
+            <div id="cleanip-candidates-table" style="display:flex; flex-direction:column; gap:6px; padding:2px;">
               <div style="text-align:center; padding:20px; color:#71717a;">در حال بارگذاری لیست آی‌پی‌های تمیز...</div>
             </div>
 
@@ -831,6 +851,10 @@
         banner.style.background = 'rgba(239, 68, 68, 0.15)';
         banner.style.color = '#ef4444';
         banner.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+      } else if (type === 'info') {
+        banner.style.background = 'rgba(56, 189, 248, 0.15)';
+        banner.style.color = '#38bdf8';
+        banner.style.border = '1px solid rgba(56, 189, 248, 0.3)';
       } else {
         banner.style.background = 'rgba(16, 185, 129, 0.15)';
         banner.style.color = '#10b981';
@@ -842,6 +866,23 @@
     // ==========================================
     // TAB 2: INTERACTIVE CANDIDATE PING & SELECTION WORKSPACE
     // ==========================================
+    const DEFAULT_FALLBACK_CANDIDATES = [
+      { ip: '104.16.24.11', isp: 'mci', provider: 'IRCF/vfarid', quality: 'gold' },
+      { ip: '104.17.150.10', isp: 'mtn', provider: 'IRCF/vfarid', quality: 'gold' },
+      { ip: '104.16.132.5', isp: 'mci', provider: 'IRCF/vfarid', quality: 'gold' },
+      { ip: '162.159.136.2', isp: 'wifi', provider: 'IRCF/vfarid', quality: 'gold' },
+      { ip: '172.67.180.55', isp: 'mci', provider: 'IRCF/vfarid', quality: 'standard' },
+      { ip: '172.64.155.20', isp: 'mtn', provider: 'IRCF/vfarid', quality: 'gold' },
+      { ip: '104.18.2.161', isp: 'mtn', provider: 'IRCF/vfarid', quality: 'gold' },
+      { ip: '104.19.143.10', isp: 'wifi', provider: 'IRCF/vfarid', quality: 'standard' },
+      { ip: '104.16.132.22', isp: 'wifi', provider: 'IRCF/vfarid', quality: 'gold' },
+      { ip: '172.67.74.88', isp: 'mtn', provider: 'IRCF/vfarid', quality: 'standard' },
+      { ip: '104.18.45.67', isp: 'wifi', provider: 'IRCF/vfarid', quality: 'standard' },
+      { ip: '162.159.192.1', isp: 'wifi', provider: 'IRCF/vfarid', quality: 'standard' },
+      { ip: '108.162.193.15', isp: 'wifi', provider: 'Cloudflare Net', quality: 'standard' },
+      { ip: '188.114.96.12', isp: 'wifi', provider: 'Cloudflare Net', quality: 'standard' },
+    ];
+
     let candidateIpsList = [];
     let currentFilterIsp = 'all';
     const candidatesContainer = document.getElementById('cleanip-candidates-table');
@@ -870,23 +911,43 @@
       if (!candidatesContainer) return;
       candidatesContainer.innerHTML = `<div style="text-align:center; padding:20px; color:#71717a;">در حال بارگذاری کاندیداهای Clean IP از فیدها...</div>`;
       try {
+        let list = [];
         const res = await fetch('/api/cleanip/candidates', { headers: getAuthHeaders() });
-        const data = await res.json();
-        candidateIpsList = (data.candidates || []).map(c => ({
+        if (res.ok) {
+          const data = await res.json();
+          list = data.candidates || [];
+        }
+
+        // If backend returned empty or 404 (e.g. backend not updated yet)
+        if (list.length === 0) {
+          const customIps = settings.custom_ips || [];
+          const customItems = customIps.map(ip => ({
+            ip: ip.trim(),
+            isp: 'custom',
+            provider: 'تنظیمات کاربر',
+            source: 'custom',
+            quality: 'custom'
+          })).filter(x => x.ip);
+
+          list = [...customItems, ...DEFAULT_FALLBACK_CANDIDATES];
+        }
+
+        candidateIpsList = list.map(c => ({
           ...c,
           selected: false,
           latency_ms: undefined
         }));
 
-        if (candidateIpsList.length === 0) {
-          candidatesContainer.innerHTML = `<div style="text-align:center; padding:20px; color:#ef4444;">هیچ آی‌پی کاندیدی یافت نشد.</div>`;
-          return;
-        }
-
         updateIspCounts();
         renderCandidateRows(currentFilterIsp);
       } catch (err) {
-        candidatesContainer.innerHTML = `<div style="text-align:center; padding:20px; color:#ef4444;">خطا در دریافت آی‌پی‌ها: ${err.message}</div>`;
+        candidateIpsList = DEFAULT_FALLBACK_CANDIDATES.map(c => ({
+          ...c,
+          selected: false,
+          latency_ms: undefined
+        }));
+        updateIspCounts();
+        renderCandidateRows(currentFilterIsp);
       }
     };
 
@@ -997,6 +1058,55 @@
       updateSelectedIpsCount();
     }
 
+    // Browser-side live probe runner
+    async function runBrowserProbe() {
+      for (let i = 0; i < candidateIpsList.length; i++) {
+        const item = candidateIpsList[i];
+        const badge = document.getElementById(`latency-${item.ip.replace(/\./g, '-')}`);
+        if (badge) badge.innerHTML = `<span style="color:#38bdf8; font-size:10px;">در حال تست... ⏳</span>`;
+
+        const start = performance.now();
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 2600);
+        let ok = false;
+        let latency = 0;
+        try {
+          await fetch(`https://${item.ip}:443`, { mode: 'no-cors', signal: controller.signal, cache: 'no-store' });
+          clearTimeout(timer);
+          latency = Math.round(performance.now() - start);
+          ok = true;
+        } catch (e) {
+          clearTimeout(timer);
+          latency = Math.round(performance.now() - start);
+          if (e.name !== 'AbortError' && latency < 2100) ok = true;
+        }
+
+        item.latency_ms = ok ? latency : -1;
+        if (ok && latency < 220) item.selected = true;
+
+        if (badge) {
+          if (ok) {
+            const color = latency < 140 ? '#10b981' : '#f59e0b';
+            const dot = latency < 140 ? '🟢' : '🟡';
+            badge.innerHTML = `<span style="color:${color}; font-weight:700; font-size:11px;">${dot} ${latency}ms</span>`;
+          } else {
+            badge.innerHTML = `<span style="color:#ef4444; font-weight:700; font-size:11px;">🔴 فیلتر / قطعی</span>`;
+          }
+        }
+        const cb = document.querySelector(`.cleanip-select-ip-cb[value="${item.ip}"]`);
+        if (cb) {
+          cb.checked = item.selected === true;
+          const parentRow = cb.closest('.pg-cleanip-ip-row');
+          if (parentRow) {
+            if (cb.checked) parentRow.classList.add('selected');
+            else parentRow.classList.remove('selected');
+          }
+        }
+        updateSelectedIpsCount();
+      }
+      showBanner('success', `🎉 تست زنده مرورگر با موفقیت تکمیل شد.`);
+    }
+
     // Ping All Button Handler
     const pingAllBtn = document.getElementById('cleanip-ping-all-btn');
     if (pingAllBtn) {
@@ -1016,6 +1126,13 @@
               headers: getAuthHeaders(),
               body: JSON.stringify({ ips: candidateIpsList.map(c => c.ip) })
             });
+            if (!res.ok) {
+              showBanner('info', 'ℹ️ تست پینگ از مرورگر شما آغاز شد...');
+              await runBrowserProbe();
+              pingAllBtn.disabled = false;
+              pingAllBtn.innerHTML = origText;
+              return;
+            }
             const data = await res.json();
             const results = data.results || [];
             results.forEach(r => {
@@ -1039,59 +1156,145 @@
             const healthyCount = candidateIpsList.filter(c => c.latency_ms > 0).length;
             showBanner('success', `🎉 تست پینگ سرور پایان یافت: تعداد ${healthyCount} آی‌پی سالم شناسایی و به ترتیب کمترین پینگ مرتب شدند.`);
           } catch (err) {
-            showBanner('error', `خطا در تست پینگ سرور: ${err.message}`);
+            showBanner('info', 'ℹ️ خطا در تست پینگ سرور؛ تست از مرورگر جایگزین شد...');
+            await runBrowserProbe();
           }
         } else {
-          // Browser-side live probe
-          for (let i = 0; i < candidateIpsList.length; i++) {
-            const item = candidateIpsList[i];
-            const badge = document.getElementById(`latency-${item.ip.replace(/\./g, '-')}`);
-            if (badge) badge.innerHTML = `<span style="color:#38bdf8; font-size:10px;">در حال تست... ⏳</span>`;
-
-            const start = performance.now();
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 2600);
-            let ok = false;
-            let latency = 0;
-            try {
-              await fetch(`https://${item.ip}:443`, { mode: 'no-cors', signal: controller.signal, cache: 'no-store' });
-              clearTimeout(timer);
-              latency = Math.round(performance.now() - start);
-              ok = true;
-            } catch (e) {
-              clearTimeout(timer);
-              latency = Math.round(performance.now() - start);
-              if (e.name !== 'AbortError' && latency < 2100) ok = true;
-            }
-
-            item.latency_ms = ok ? latency : -1;
-            if (ok && latency < 220) item.selected = true;
-
-            if (badge) {
-              if (ok) {
-                const color = latency < 140 ? '#10b981' : '#f59e0b';
-                const dot = latency < 140 ? '🟢' : '🟡';
-                badge.innerHTML = `<span style="color:${color}; font-weight:700; font-size:11px;">${dot} ${latency}ms</span>`;
-              } else {
-                badge.innerHTML = `<span style="color:#ef4444; font-weight:700; font-size:11px;">🔴 فیلتر / قطعی</span>`;
-              }
-            }
-            const cb = document.querySelector(`.cleanip-select-ip-cb[value="${item.ip}"]`);
-            if (cb) {
-              cb.checked = item.selected === true;
-              const parentRow = cb.closest('.pg-cleanip-ip-row');
-              if (parentRow) {
-                if (cb.checked) parentRow.classList.add('selected');
-                else parentRow.classList.remove('selected');
-              }
-            }
-            updateSelectedIpsCount();
-          }
-          showBanner('success', `🎉 تست زنده مرورگر با موفقیت تکمیل شد.`);
+          await runBrowserProbe();
         }
 
         pingAllBtn.disabled = false;
         pingAllBtn.innerHTML = origText;
+      };
+    }
+
+    // Toggle Manual Add Drawer
+    const toggleManualBtn = document.getElementById('cleanip-toggle-manual-btn');
+    const manualDrawer = document.getElementById('cleanip-manual-drawer');
+    if (toggleManualBtn && manualDrawer) {
+      toggleManualBtn.onclick = () => {
+        const isHidden = manualDrawer.style.display === 'none';
+        manualDrawer.style.display = isHidden ? 'flex' : 'none';
+        if (isHidden) {
+          const inp = document.getElementById('cleanip-manual-ips-input');
+          if (inp) inp.focus();
+        }
+      };
+    }
+
+    // Handle Manual Add Submit
+    const manualAddBtn = document.getElementById('cleanip-manual-add-submit-btn');
+    const manualInp = document.getElementById('cleanip-manual-ips-input');
+    if (manualAddBtn && manualInp) {
+      const handleManualAdd = () => {
+        const raw = manualInp.value || '';
+        const matched = raw.match(/\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g) || [];
+        if (matched.length === 0) {
+          showBanner('error', '⚠️ لطفاً حداقل یک آی‌پی معتبر IPv4 وارد کنید (مثال: 104.16.24.11).');
+          return;
+        }
+
+        let addedCount = 0;
+        matched.forEach(ip => {
+          if (!candidateIpsList.some(c => c.ip === ip)) {
+            candidateIpsList.unshift({
+              ip: ip,
+              isp: 'custom',
+              provider: 'ورود دستی',
+              source: 'custom',
+              quality: 'custom',
+              selected: true,
+              latency_ms: undefined
+            });
+            addedCount++;
+          }
+        });
+
+        // Also save to settings.custom_ips so they persist across sessions
+        const existingCustom = settings.custom_ips || [];
+        const combined = Array.from(new Set([...existingCustom, ...matched]));
+        settings.custom_ips = combined;
+        const customInputArea = document.getElementById('cleanip-custom-ips-input');
+        if (customInputArea) customInputArea.value = combined.join('\n');
+
+        fetch('/api/cleanip/settings', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(getFormPayload())
+        }).catch(() => {});
+
+        manualInp.value = '';
+        manualDrawer.style.display = 'none';
+        updateIspCounts();
+        renderCandidateRows(currentFilterIsp);
+        showBanner('success', `✅ تعداد ${addedCount} آی‌پی دستی به جدول تست اضافه و تیک خوردند.`);
+      };
+
+      manualAddBtn.onclick = handleManualAdd;
+      manualInp.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleManualAdd();
+        }
+      };
+    }
+
+    // Discover Cloudflare Subnet IPs Button Handler
+    const discoverCfBtn = document.getElementById('cleanip-discover-cf-btn');
+    if (discoverCfBtn) {
+      discoverCfBtn.onclick = async () => {
+        discoverCfBtn.disabled = true;
+        const origText = discoverCfBtn.innerHTML;
+        discoverCfBtn.innerHTML = `در حال دریافت... ⏳`;
+        try {
+          let sampled = [];
+          const res = await fetch('/api/cleanip/discover-cf-ips', {
+            method: 'POST',
+            headers: getAuthHeaders()
+          });
+          if (res.ok) {
+            const data = await res.json();
+            sampled = data.candidates || [];
+          }
+
+          if (sampled.length === 0) {
+            // Client-side fallback generator from Cloudflare subnets
+            const prefixes = ['104.16.', '104.17.', '104.18.', '172.67.', '162.159.', '108.162.'];
+            for (let i = 0; i < 12; i++) {
+              const pref = prefixes[Math.floor(Math.random() * prefixes.length)];
+              const b = Math.floor(Math.random() * 253) + 1;
+              const c = Math.floor(Math.random() * 253) + 1;
+              sampled.push({
+                ip: `${pref}${b}.${c}`,
+                isp: 'wifi',
+                provider: 'CF Subnet',
+                source: 'subnet-scan',
+                quality: 'standard'
+              });
+            }
+          }
+
+          let added = 0;
+          sampled.forEach(item => {
+            if (!candidateIpsList.some(c => c.ip === item.ip)) {
+              candidateIpsList.push({
+                ...item,
+                selected: false,
+                latency_ms: undefined
+              });
+              added++;
+            }
+          });
+
+          updateIspCounts();
+          renderCandidateRows(currentFilterIsp);
+          showBanner('success', `🎲 تعداد ${added} آی‌پی از رنج‌های کلودفلر استخراج و به جدول اضافه شد. اکنون دکمه «تست پینگ همه» را بزنید.`);
+        } catch (e) {
+          showBanner('error', `خطا در دریافت آی‌پی‌ها: ${e.message}`);
+        } finally {
+          discoverCfBtn.disabled = false;
+          discoverCfBtn.innerHTML = origText;
+        }
       };
     }
 

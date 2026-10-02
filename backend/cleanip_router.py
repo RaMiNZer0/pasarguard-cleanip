@@ -84,7 +84,7 @@ def get_current_settings() -> CleanIPSettings:
     return CleanIPSettings.model_validate(raw)
 
 
-CURRENT_VERSION = "1.7.0"
+CURRENT_VERSION = "1.7.1"
 RAW_BASE_URL = "https://raw.githubusercontent.com/RaMiNZer0/pasarguard-cleanip/main"
 
 
@@ -144,7 +144,7 @@ async def get_status(db=Depends(get_db), _=Depends(require_permission("hosts", "
 @router.get("/candidates")
 async def get_candidates(_=Depends(require_permission("hosts", "read"))):
     """Returns candidate clean IPs categorized by operator for testing and manual selection."""
-    from backend.cleanip_engine import get_candidate_probe_list
+    from backend.cleanip_engine import get_candidate_probe_list, generate_sample_cf_ips
     settings = get_current_settings()
     candidates = get_candidate_probe_list(per_isp_limit=10)
 
@@ -156,7 +156,21 @@ async def get_candidates(_=Depends(require_permission("hosts", "read"))):
         ]
         candidates = custom_items + candidates
 
+    if not candidates:
+        candidates = generate_sample_cf_ips(count=15)
+
     return {"candidates": candidates}
+
+
+@router.post("/discover-cf-ips")
+async def discover_cf_ips(
+    count: int = 15,
+    _=Depends(require_permission("hosts", "read"))
+):
+    """Samples and discovers candidate IPs from official Cloudflare subnets."""
+    from backend.cleanip_engine import generate_sample_cf_ips
+    sampled = generate_sample_cf_ips(count=min(count, 50))
+    return {"candidates": sampled}
 
 
 class PingCandidatesRequest(BaseModel):

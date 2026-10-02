@@ -157,3 +157,13 @@ def test_apply_selected_endpoint(client):
     assert data["success"] is True
     assert len(data["applied_ips"]) == 2
     assert len(data["updated_hosts"]) == 2
+
+
+def test_discover_cf_ips_endpoint(client):
+    """Test /discover-cf-ips endpoint"""
+    res = client.post("/api/cleanip/discover-cf-ips?count=10")
+    assert res.status_code == 200
+    data = res.json()
+    assert "candidates" in data
+    assert len(data["candidates"]) == 10
+    assert "ip" in data["candidates"][0]

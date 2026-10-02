@@ -160,6 +160,14 @@
             ]
           }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
+        if (url.includes('/api/cleanip/discover-cf-ips')) {
+          return new Response(JSON.stringify({
+            candidates: [
+              { ip: '104.16.88.99', isp: 'wifi', provider: 'CF Subnet', source: 'subnet-scan', quality: 'gold' },
+              { ip: '172.67.90.100', isp: 'wifi', provider: 'CF Subnet', source: 'subnet-scan', quality: 'standard' }
+            ]
+          }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
         if (url.includes('/api/cleanip/apply-selected')) {
           return new Response(JSON.stringify({
             success: true,

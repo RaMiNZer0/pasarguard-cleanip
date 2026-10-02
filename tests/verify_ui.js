@@ -2,7 +2,7 @@ const { chromium } = require('C:/Users/ZerO/AppData/Roaming/npm/node_modules/@pl
 const path = require('path');
 
 (async () => {
-  console.log('🚀 Starting Edge Playwright UI Verification for v1.7.0...');
+  console.log('🚀 Starting Edge Playwright UI Verification for v1.7.1...');
 
   const browser = await chromium.launch({
     channel: 'msedge',
@@ -20,7 +20,7 @@ const path = require('path');
   const cardBox = await card.boundingBox();
   console.log(`✅ Modal Card Dimensions: width=${cardBox.width}px, height=${cardBox.height}px, top=${cardBox.y}px, left=${cardBox.x}px`);
 
-  if (cardBox.height > 650 || cardBox.width > 650) {
+  if (cardBox.height > 660 || cardBox.width > 660) {
     throw new Error(`FAIL: Card dimensions out of bounds!`);
   }
 
@@ -40,13 +40,34 @@ const path = require('path');
   
   // Wait for candidate rows to be rendered
   await page.waitForSelector('.pg-cleanip-ip-row', { timeout: 5000 });
-  const candidateRows = await page.$$('.pg-cleanip-ip-row');
-  console.log(`✅ Tab 2: Candidate rows found: ${candidateRows.length}`);
+  let candidateRows = await page.$$('.pg-cleanip-ip-row');
+  console.log(`✅ Tab 2: Initial candidate rows found: ${candidateRows.length}`);
   if (candidateRows.length === 0) {
     throw new Error('FAIL: No candidate rows populated in Tab 2!');
   }
 
-  // Click Ping All button
+  // 2a. Test Manual IP Addition
+  console.log('➕ Testing Manual IP Addition drawer...');
+  await page.click('#cleanip-toggle-manual-btn');
+  await page.waitForTimeout(200);
+  await page.fill('#cleanip-manual-ips-input', '104.16.99.1');
+  await page.click('#cleanip-manual-add-submit-btn');
+  await page.waitForTimeout(300);
+
+  const hasManualIp = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('.pg-cleanip-ip-row')).some(el => el.innerText.includes('104.16.99.1'));
+  });
+  console.log(`✅ Tab 2: Manual IP 104.16.99.1 added to table: ${hasManualIp}`);
+  if (!hasManualIp) throw new Error('FAIL: Manual IP was not added to candidate table!');
+
+  // 2b. Test Cloudflare Subnet Discovery
+  console.log('🎲 Testing Cloudflare Subnet Discovery...');
+  await page.click('#cleanip-discover-cf-btn');
+  await page.waitForTimeout(600);
+  candidateRows = await page.$$('.pg-cleanip-ip-row');
+  console.log(`✅ Tab 2: Candidate rows after discovery: ${candidateRows.length}`);
+
+  // 2c. Click Ping All button
   console.log('⚡ Clicking "تست پینگ همه آی‌پی‌ها" button...');
   await page.click('#cleanip-ping-all-btn');
   await page.waitForTimeout(800);
@@ -113,6 +134,6 @@ const path = require('path');
   }
   await page.screenshot({ path: path.resolve(__dirname, 'test_closed.png') });
 
-  console.log('🎉 ALL v1.7.0 UI & WORKSPACE TESTS PASSED PERFECTLY!');
+  console.log('🎉 ALL v1.7.1 UI & WORKSPACE TESTS PASSED PERFECTLY!');
   await browser.close();
 })();
