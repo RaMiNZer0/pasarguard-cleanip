@@ -223,6 +223,21 @@ async def ping_candidates(
     return {"results": results}
 
 
+def is_newer_version(remote: str, current: str) -> bool:
+    if not remote or not current:
+        return False
+    r_parts = [int(p) for p in re.sub(r"[^\d.]", "", str(remote)).split(".") if p.isdigit()]
+    c_parts = [int(p) for p in re.sub(r"[^\d.]", "", str(current)).split(".") if p.isdigit()]
+    for i in range(max(len(r_parts), len(c_parts))):
+        r = r_parts[i] if i < len(r_parts) else 0
+        c = c_parts[i] if i < len(c_parts) else 0
+        if r > c:
+            return True
+        if r < c:
+            return False
+    return False
+
+
 @router.get("/check-update")
 async def check_update(_=Depends(require_permission("hosts", "read"))):
     """Checks GitHub for new Clean IP releases and changelog."""
@@ -232,10 +247,22 @@ async def check_update(_=Depends(require_permission("hosts", "read"))):
         data_text = _fetch_remote_text(url, timeout=6)
         info = json.loads(data_text)
         remote_version = info.get("version", CURRENT_VERSION)
-        has_update = remote_version.strip() != CURRENT_VERSION.strip()
+
+        local_version = CURRENT_VERSION
+        local_version_file = DATA_DIR / "version.json"
+        if local_version_file.exists():
+            try:
+                local_info = json.loads(local_version_file.read_text(encoding="utf-8"))
+                disk_ver = local_info.get("version")
+                if disk_ver and is_newer_version(disk_ver, local_version):
+                    local_version = disk_ver
+            except Exception:
+                pass
+
+        has_update = is_newer_version(remote_version, local_version)
         return {
             "has_update": has_update,
-            "current_version": CURRENT_VERSION,
+            "current_version": local_version,
             "latest_version": remote_version,
             "changelog": info.get("changelog", "بهینه‌سازی و بهبود کارایی"),
         }

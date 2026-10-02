@@ -239,3 +239,34 @@ def test_sni_protection_on_native_modify(client, monkeypatch):
     assert modified_captured[0].sni == "cdn.domain.com"
     assert modified_captured[0].address == {"104.16.24.11"}
 
+
+def test_is_newer_version():
+    """Test semantic version comparison helper"""
+    from backend.cleanip_router import is_newer_version
+    assert is_newer_version("1.8.1", "1.8.0") is True
+    assert is_newer_version("2.0.0", "1.8.0") is True
+    assert is_newer_version("1.8.0", "1.8.0") is False
+    assert is_newer_version("1.7.9", "1.8.0") is False
+    assert is_newer_version("v1.8.0", "1.8.0") is False
+    assert is_newer_version("1.8.0", "v1.8.0") is False
+    assert is_newer_version("v1.8.1", "1.8.0") is True
+    assert is_newer_version("", "1.8.0") is False
+    assert is_newer_version(None, "1.8.0") is False
+
+
+def test_check_update_no_false_positive(client, monkeypatch):
+    """Test /check-update returns has_update=False when remote matches current version"""
+    from backend.cleanip_router import CURRENT_VERSION
+    import json
+
+    monkeypatch.setattr(
+        "backend.cleanip_router._fetch_remote_text",
+        lambda url, timeout=6: json.dumps({"version": CURRENT_VERSION, "changelog": "No changes"})
+    )
+
+    res = client.get("/api/cleanip/check-update")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["has_update"] is False
+    assert data["latest_version"] == CURRENT_VERSION
+

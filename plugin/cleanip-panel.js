@@ -420,11 +420,27 @@
     }
   }
 
+  function isNewerVersion(remote, local) {
+    if (!remote || !local) return false;
+    const cleanRemote = String(remote).replace(/^v/i, '').trim();
+    const cleanLocal = String(local).replace(/^v/i, '').trim();
+    if (cleanRemote === cleanLocal) return false;
+    const pRemote = cleanRemote.split('.').map(x => parseInt(x, 10) || 0);
+    const pLocal = cleanLocal.split('.').map(x => parseInt(x, 10) || 0);
+    for (let i = 0; i < Math.max(pRemote.length, pLocal.length); i++) {
+      const r = pRemote[i] || 0;
+      const l = pLocal[i] || 0;
+      if (r > l) return true;
+      if (r < l) return false;
+    }
+    return false;
+  }
+
   function renderModalContent(overlay, statusData, hostsList, updateData) {
     const settings = statusData?.settings || {};
     const latest = statusData?.latest_update;
     const targetHostIds = Array.isArray(settings.target_host_ids) ? settings.target_host_ids : (settings.target_host_id ? [settings.target_host_id] : []);
-    const hasUpdate = updateData?.has_update;
+    const hasUpdate = Boolean(updateData?.has_update) && isNewerVersion(updateData?.latest_version, VERSION);
     const iranNode = statusData?.iran_node || { available: false };
 
     overlay.innerHTML = `
